@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stachey's Pizza</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* ─── STORY IMAGES ─── */
+    .story__image {
+      width: 100%; aspect-ratio: 3/4;
+      object-fit: cover;
+      border: 1px solid var(--color-line);
+      filter: brightness(0.88) saturate(0.9);
+      transition: filter 400ms var(--ease-out);
+    }
+    .story__image:hover { filter: brightness(1) saturate(1); }
+
+    /* ─── NAV SCROLLED ─── */
+    .nav.scrolled {
+      background: rgba(20,17,15,0.97);
+      border-bottom: 1px solid var(--color-line);
+    }
+
+    /* ─── TOAST ─── */
+    .toast {
+      position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(80px);
+      background: var(--color-bg-alt); border: 1px solid var(--color-accent);
+      padding: 14px 24px; font-size: 13px; letter-spacing: 0.1em;
+      color: var(--color-ivory); z-index: 300;
+      transition: transform 360ms var(--ease-out), opacity 360ms var(--ease-out);
+      opacity: 0; pointer-events: none; white-space: nowrap;
+    }
+    .toast.is-visible { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    /* ─── ORDER MODAL ─── */
+    .order-modal {
+      position: fixed; inset: 0; z-index: 200;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 300ms var(--ease-out);
+    }
+    .order-modal.is-open { opacity: 1; pointer-events: all; }
+    .order-modal__scrim {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    }
+    .order-modal__box {
+      position: relative; z-index: 1;
+      background: var(--color-bg-alt); border: 1px solid var(--color-line);
+      width: min(560px, 95vw); max-height: 90vh; overflow-y: auto;
+      transform: translateY(20px);
+      transition: transform 360ms var(--ease-out);
+    }
+    .order-modal.is-open .order-modal__box { transform: translateY(0); }
+    .order-modal__head {
+      padding: 32px 40px 24px; border-bottom: 1px solid var(--color-line);
+      display: flex; justify-content: space-between; align-items: center;
+      position: sticky; top: 0; background: var(--color-bg-alt); z-index: 2;
+    }
+    .order-modal__title { font-family: var(--font-serif); font-size: 28px; }
+    .order-modal__close {
+      background: transparent; border: 1px solid var(--color-line);
+      color: var(--color-ivory-dim); padding: 8px 16px;
+      font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+      cursor: pointer; transition: all 200ms var(--ease-out);
+    }
+    .order-modal__close:hover { border-color: var(--color-ivory); color: var(--color-ivory); }
+    .order-modal__body { padding: 32px 40px; }
+    .order-form__label {
+      font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase;
+      color: var(--color-accent-bright); margin-bottom: 12px; display: block;
+    }
+    .order-form__section { margin-bottom: 32px; }
+    .order-form__row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .order-form__input {
+      width: 100%; background: transparent;
+      border: 0; border-bottom: 1px solid var(--color-line);
+      color: var(--color-ivory); padding: 14px 0 10px;
+      font-family: var(--font-sans); font-size: 15px;
+      outline: none; transition: border-color 240ms var(--ease-out);
+    }
+    .order-form__input:focus { border-color: var(--color-accent); }
+    .order-form__input::placeholder { color: var(--color-ivory-muted); }
+    .order-form__radio-group { display: flex; gap: 12px; flex-wrap: wrap; }
+    .order-form__radio {
+      flex: 1; min-width: 120px; border: 1px solid var(--color-line);
+      padding: 16px; cursor: pointer;
+      transition: all 240ms var(--ease-out);
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .order-form__radio input { display: none; }
+    .order-form__radio.selected { border-color: var(--color-accent); background: rgba(90,122,82,0.1); }
+    .order-form__radio-title { font-family: var(--font-serif); font-size: 18px; }
+    .order-form__radio-sub { font-size: 12px; color: var(--color-ivory-muted); letter-spacing: 0.06em; }
+    .order-modal__footer {
+      padding: 24px 40px; border-top: 1px solid var(--color-line);
+      position: sticky; bottom: 0; background: var(--color-bg-alt);
+    }
+    .order-success {
+      display: none; text-align: center; padding: 48px 40px;
+    }
+    .order-success.is-visible { display: block; }
+    .order-success__icon { font-size: 56px; margin-bottom: 24px; }
+    .order-success__title { font-family: var(--font-serif); font-size: 36px; margin-bottom: 12px; }
+    .order-success__sub { color: var(--color-ivory-dim); font-size: 15px; line-height: 1.7; }
+    .order-success__eta {
+      margin: 28px auto 0;
+      display: inline-flex; align-items: center; gap: 12px;
+      border: 1px solid var(--color-accent);
+      padding: 14px 24px;
+      font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--color-accent-bright);
+    }
+
+    /* ─── MOBILE MENU ─── */
+    .nav__hamburger {
+      display: none; background: transparent; border: 1px solid var(--color-line);
+      color: var(--color-ivory); padding: 8px 14px;
+      font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer;
+    }
+    .mobile-menu {
+      display: none; position: fixed; top: 73px; left: 0; right: 0;
+      background: rgba(20,17,15,0.98); border-bottom: 1px solid var(--color-line);
+      z-index: 59; padding: 24px 32px; backdrop-filter: blur(12px);
+      flex-direction: column; gap: 20px;
+    }
+    .mobile-menu.is-open { display: flex; }
+    .mobile-menu a {
+      font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--color-ivory-dim); padding: 8px 0;
+      border-bottom: 1px solid var(--color-line); transition: color 200ms;
+    }
+    .mobile-menu a:hover { color: var(--color-ivory); }
+
+    @media (max-width: 960px) {
+      .nav__hamburger { display: block; }
+      .nav__links { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="nav" id="mainNav">
+    <a class="nav__brand" href="index.html">Stachey's <strong>Pizza</strong></a>
+    <nav class="nav__links">
+      <a class="nav__link" href="index.html">Home</a>
+      <a class="nav__link" href="menu.html">Menu</a>
+      <a class="nav__link" href="menu.html#customize">Customize</a>
+      <a class="nav__link" href="index.html#story">Our Story</a>
+    </nav>
+    <div style="display:flex; gap:12px; align-items:center;">
+      <button class="nav__hamburger" id="hamburgerBtn">Menu</button>
+      <button class="nav__cart" data-cart-open>Order <span data-cart-count>(0)</span></button>
+    </div>
+  </header>
+
+  <nav class="mobile-menu" id="mobileMenu">
+    <a href="index.html">Home</a>
+    <a href="menu.html">Menu</a>
+    <a href="menu.html#customize">Customize</a>
+    <a href="index.html#story">Our Story</a>
+  </nav>
+
+  <!-- Dynamic Custom Page content will render here -->
+  <main class="site-shell" data-custom-page-main></main>
+
+  <footer class="footer">
+    <div class="container footer__grid" data-edit-target="footerGrid"></div>
+  </footer>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Cart drawer -->
+  <div class="scrim" data-cart-scrim></div>
+  <aside class="drawer" data-cart-drawer aria-hidden="true" aria-label="Your order">
+    <div class="drawer__head">
+      <div class="drawer__title">Your Order</div>
+      <button class="drawer__close" data-cart-close>Close</button>
+    </div>
+    <div class="drawer__body" data-cart-body></div>
+    <div class="drawer__foot">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:18px;">
+        <span style="font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--color-ivory-muted);">Subtotal</span>
+        <span style="font-family:var(--font-serif); font-size:28px;" data-cart-total>$0.00</span>
+      </div>
+      <button class="btn btn--accent" style="width:100%;" id="placeOrderBtn">Place Order</button>
+    </div>
+  </aside>
+
+  <!-- Order modal -->
+  <div class="order-modal" id="orderModal">
+    <div class="order-modal__scrim" id="modalScrim"></div>
+    <div class="order-modal__box">
+      <div id="orderFormWrap">
+        <div class="order-modal__head">
+          <div class="order-modal__title">Complete Your Order</div>
+          <button class="order-modal__close" id="modalClose">Close</button>
+        </div>
+        <div class="order-modal__body">
+          <div class="order-form__section">
+            <span class="order-form__label">Delivery or Pickup?</span>
+            <div class="order-form__radio-group" id="orderTypeGroup">
+              <label class="order-form__radio selected" data-type="pickup">
+                <input type="radio" name="orderType" value="pickup" checked />
+                <span class="order-form__radio-title">Pickup</span>
+                <span class="order-form__radio-sub">Ready in 25–35 min</span>
+              </label>
+              <label class="order-form__radio" data-type="delivery">
+                <input type="radio" name="orderType" value="delivery" />
+                <span class="order-form__radio-title">Delivery</span>
+                <span class="order-form__radio-sub">45–60 min · $4 fee</span>
+              </label>
+            </div>
+          </div>
+          <div class="order-form__section">
+            <span class="order-form__label">Your Details</span>
+            <div class="order-form__row">
+              <input class="order-form__input" type="text" placeholder="First name" id="fName" required />
+              <input class="order-form__input" type="text" placeholder="Last name" id="lName" required />
+            </div>
+            <input class="order-form__input" type="tel" placeholder="Phone number" id="phone" style="width:100%; margin-top:16px;" required />
+          </div>
+          <div id="deliverySection" style="display:none;">
+            <div class="order-form__section">
+              <span class="order-form__label">Delivery Address</span>
+              <input class="order-form__input" type="text" placeholder="Street address" id="addr" style="width:100%;" />
+              <div class="order-form__row" style="margin-top:16px;">
+                <input class="order-form__input" type="text" placeholder="Apt / Unit (optional)" id="apt" />
+                <input class="order-form__input" type="text" placeholder="Zip code" id="zip" />
+              </div>
+            </div>
+          </div>
+          <div class="order-form__section">
+            <span class="order-form__label">Payment</span>
+            <div class="order-form__radio-group" id="payGroup">
+              <label class="order-form__radio selected" data-pay="cash">
+                <input type="radio" name="payment" value="cash" checked />
+                <span class="order-form__radio-title">Cash</span>
+                <span class="order-form__radio-sub">Pay on arrival</span>
+              </label>
+              <label class="order-form__radio" data-pay="card">
+                <input type="radio" name="payment" value="card" />
+                <span class="order-form__radio-title">Card</span>
+                <span class="order-form__radio-sub">Visa / MC / Amex</span>
+              </label>
+            </div>
+          </div>
+          <div id="cardSection" style="display:none;">
+            <div class="order-form__section">
+              <span class="order-form__label">Card Details</span>
+              <input class="order-form__input" type="text" placeholder="Card number" style="width:100%;" maxlength="19" id="cardNum" />
+              <div class="order-form__row" style="margin-top:16px;">
+                <input class="order-form__input" type="text" placeholder="MM / YY" maxlength="7" id="cardExp" />
+                <input class="order-form__input" type="text" placeholder="CVV" maxlength="4" id="cardCvv" />
+              </div>
+            </div>
+          </div>
+          <div class="order-form__section" style="background: var(--color-bg); border: 1px solid var(--color-line); padding: 20px;">
+            <span class="order-form__label">Order Summary</span>
+            <div id="modalCartItems" style="margin-bottom:12px;"></div>
+            <div style="display:flex; justify-content:space-between; border-top: 1px solid var(--color-line); padding-top:12px; margin-top:8px;">
+              <span style="font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--color-ivory-muted);">Total</span>
+              <span style="font-family:var(--font-serif); font-size:22px;" id="modalTotal"></span>
+            </div>
+          </div>
+        </div>
+        <div class="order-modal__footer">
+          <button class="btn btn--accent" style="width:100%; font-size:13px;" id="confirmOrderBtn">Confirm Order</button>
+        </div>
+      </div>
+
+      <div class="order-success" id="orderSuccess">
+        <div class="order-success__icon">🍕</div>
+        <div class="order-success__title">Order Received!</div>
+        <p class="order-success__sub" id="successMsg">We've got your order and the oven is ready.<br/>You'll receive a confirmation at your number.</p>
+        <div class="order-success__eta" id="successEta">
+          <span>⏱</span><span id="etaText">Ready in 25–35 min</span>
+        </div>
+        <button class="btn btn--ghost" style="margin-top:32px;" id="successClose">Continue Browsing</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // ─── NAV SCROLL ───
+    const nav = document.getElementById('mainNav');
+    window.addEventListener('scroll', () => {
+      nav.classList.toggle('scrolled', window.scrollY > 60);
+    }, { passive: true });
+
+    // ─── HAMBURGER ───
+    const hamburger = document.getElementById('hamburgerBtn');
+    const mobileMenu = document.getElementById('mobileMenu');
+    hamburger.addEventListener('click', () => {
+      mobileMenu.classList.toggle('is-open');
+      hamburger.textContent = mobileMenu.classList.contains('is-open') ? 'Close' : 'Menu';
+    });
+    mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+      mobileMenu.classList.remove('is-open');
+      hamburger.textContent = 'Menu';
+    }));
+
+    // ─── TOAST ───
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('is-visible');
+      setTimeout(() => t.classList.remove('is-visible'), 2800);
+    }
+    window.showToast = showToast;
+
+    // ─── ORDER MODAL ───
+    const modal = document.getElementById('orderModal');
+    const modalScrim = document.getElementById('modalScrim');
+    const modalClose = document.getElementById('modalClose');
+    const placeOrderBtn = document.getElementById('placeOrderBtn');
+    const confirmBtn = document.getElementById('confirmOrderBtn');
+    const orderSuccess = document.getElementById('orderSuccess');
+    const orderFormWrap = document.getElementById('orderFormWrap');
+    const successClose = document.getElementById('successClose');
+
+    function openModal() {
+      const items = JSON.parse(localStorage.getItem('stacheys.cart') || '[]');
+      if (!items.length) { showToast('Add items to your order first'); return; }
+      const container = document.getElementById('modalCartItems');
+      container.innerHTML = items.map(it => `
+        <div style="display:flex; justify-content:space-between; padding: 8px 0; border-bottom: 1px solid var(--color-line); font-size:14px;">
+          <span style="color:var(--color-ivory-dim);">${it.name}</span>
+          <span style="font-family:var(--font-serif);">$${it.price.toFixed(2)}</span>
+        </div>
+      `).join('');
+      const total = items.reduce((s,i) => s + i.price, 0);
+      document.getElementById('modalTotal').textContent = `$${total.toFixed(2)}`;
+      modal.classList.add('is-open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+      modal.classList.remove('is-open');
+      document.body.style.overflow = '';
+      orderSuccess.classList.remove('is-visible');
+      orderFormWrap.style.display = '';
+    }
+
+    placeOrderBtn.addEventListener('click', openModal);
+    modalClose.addEventListener('click', closeModal);
+    modalScrim.addEventListener('click', closeModal);
+    successClose.addEventListener('click', closeModal);
+
+    document.querySelectorAll('#orderTypeGroup .order-form__radio').forEach(label => {
+      label.addEventListener('click', () => {
+        document.querySelectorAll('#orderTypeGroup .order-form__radio').forEach(l => l.classList.remove('selected'));
+        label.classList.add('selected');
+        document.getElementById('deliverySection').style.display = label.dataset.type === 'delivery' ? 'block' : 'none';
+      });
+    });
+
+    document.querySelectorAll('#payGroup .order-form__radio').forEach(label => {
+      label.addEventListener('click', () => {
+        document.querySelectorAll('#payGroup .order-form__radio').forEach(l => l.classList.remove('selected'));
+        label.classList.add('selected');
+        document.getElementById('cardSection').style.display = label.dataset.pay === 'card' ? 'block' : 'none';
+      });
+    });
+
+    const cardInput = document.getElementById('cardNum');
+    if (cardInput) {
+      cardInput.addEventListener('input', (e) => {
+        let v = e.target.value.replace(/\D/g,'').substring(0,16);
+        e.target.value = v.replace(/(.{4})/g,'$1 ').trim();
+      });
+    }
+    const expInput = document.getElementById('cardExp');
+    if (expInput) {
+      expInput.addEventListener('input', (e) => {
+        let v = e.target.value.replace(/\D/g,'').substring(0,4);
+        if (v.length >= 2) v = v.substring(0,2) + ' / ' + v.substring(2);
+        e.target.value = v;
+      });
+    }
+
+    confirmBtn.addEventListener('click', () => {
+      const fname = document.getElementById('fName').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      if (!fname || !phone) { showToast('Please fill in your name and phone'); return; }
+      const type = document.querySelector('#orderTypeGroup .order-form__radio.selected').dataset.type;
+      const eta = type === 'delivery' ? '45–60 min' : '25–35 min';
+      document.getElementById('etaText').textContent = `Ready in ${eta}`;
+      document.getElementById('successMsg').innerHTML = `Thanks, ${fname}! Your order is confirmed.<br/>We'll text you at ${phone} when it's ready.`;
+      orderFormWrap.style.display = 'none';
+      orderSuccess.classList.add('is-visible');
+      localStorage.removeItem('stacheys.cart');
+      document.querySelectorAll('[data-cart-count]').forEach(el => el.textContent = '(0)');
+      document.querySelectorAll('[data-cart-total]').forEach(el => el.textContent = '$0.00');
+      const body = document.querySelector('[data-cart-body]');
+      if (body) body.innerHTML = '<div style="color: var(--color-ivory-muted); font-size: 14px;">No items yet. Choose your pies from the menu.</div>';
+    });
+  </script>
+</body>
+</html>

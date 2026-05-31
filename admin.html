@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stachey's Pizza — Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* ─── Admin Tab Bar ─── */
+    .admin-tabs {
+      position: fixed; top: 0; left: 0; right: 0; height: 60px;
+      background: rgba(20,17,15,0.98); border-bottom: 1px solid var(--color-accent);
+      z-index: 9999; display: flex; align-items: center; justify-content: center;
+      gap: 8px; padding: 0 24px; overflow-x: auto;
+      backdrop-filter: blur(12px);
+    }
+    .admin-tab {
+      background: transparent; border: 1px solid transparent;
+      color: var(--color-ivory-dim); padding: 8px 16px;
+      font-family: var(--font-sans); font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      cursor: pointer; transition: all 0.2s; white-space: nowrap; flex-shrink: 0;
+    }
+    .admin-tab:hover { color: var(--color-ivory); border-color: var(--color-line); }
+    .admin-tab.active { color: var(--color-ivory); border-color: var(--color-accent); background: rgba(90,122,82,0.12); }
+    .admin-tab--add {
+      color: var(--color-accent-bright); border: 1px dashed var(--color-accent);
+    }
+    .admin-tab--add:hover { background: rgba(90,122,82,0.15); }
+
+    /* ─── Views ─── */
+    .admin-view { margin-top: 60px; display: none; padding-bottom: 120px; }
+    .admin-view.active { display: block; }
+
+    /* ─── Inline styles from main site ─── */
+    .hero-frame__image { position: relative; width: 72%; aspect-ratio: 1/1; border-radius: 50%; object-fit: cover; border: 1px solid rgba(245,239,225,0.18); box-shadow: 0 20px 60px rgba(0,0,0,0.7), inset 0 0 0 8px rgba(20,17,15,0.3); transform: translateZ(40px); display: block; }
+    .hero-frame__plate { position: relative; width: 100%; height: 100%; border: 1px solid var(--color-line); background: radial-gradient(circle at 50% 40%, #1a1410 0%, #0e0c0a 70%); display: flex; align-items: center; justify-content: center; transform-style: preserve-3d; overflow: hidden; }
+    .hero-frame__plate::before { content: ''; position: absolute; inset: 24px; border: 1px solid var(--color-line); pointer-events: none; z-index: 2; }
+    .hero-frame__plate-bg { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 110%, rgba(90,122,82,0.08) 0%, transparent 60%); z-index: 1; }
+    .story__image { width: 100%; aspect-ratio: 3/4; object-fit: cover; border: 1px solid var(--color-line); filter: brightness(0.88) saturate(0.9); }
+    .menu-card__media { aspect-ratio: 5/4; width: 100%; border: 1px solid var(--color-line); position: relative; overflow: hidden; background: #1a1410; }
+    .menu-card__media img { width: 100%; height: 100%; object-fit: cover; display: block; filter: brightness(0.9) saturate(0.9); }
+    .menu-card__media-tag { position: absolute; left: 12px; top: 12px; font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase; background: var(--color-bg); padding: 6px 10px; border: 1px solid var(--color-line); color: var(--color-ivory-dim); z-index: 2; }
+
+    /* ─── Admin Section Headers ─── */
+    .admin-section-label {
+      font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.28em;
+      text-transform: uppercase; color: var(--color-accent-bright);
+      margin-bottom: 24px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--color-line);
+    }
+
+    /* ─── Custom Page Editor ─── */
+    .custom-page-block {
+      border: 1px solid var(--color-line); padding: 32px; margin-bottom: 32px;
+      position: relative;
+    }
+    .custom-page-block__delete {
+      position: absolute; top: 12px; right: 12px;
+      background: transparent; border: 1px solid var(--color-line);
+      color: #c44; padding: 4px 12px; font-size: 10px; letter-spacing: 0.15em;
+      text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+    }
+    .custom-page-block__delete:hover { border-color: #c44; background: rgba(204,68,68,0.1); }
+    .add-block-btn {
+      background: transparent; color: var(--color-ivory);
+      border: 1px dashed var(--color-line); padding: 20px 40px;
+      font-family: var(--font-sans); font-size: 12px;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      cursor: pointer; transition: all 0.2s; display: block; width: 100%;
+      margin-top: 24px;
+    }
+    .add-block-btn:hover { border-color: var(--color-accent); }
+    .delete-page-btn {
+      background: transparent; border: 1px solid #c44;
+      color: #c44; padding: 10px 24px; margin-top: 40px;
+      font-family: var(--font-sans); font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .delete-page-btn:hover { background: rgba(204,68,68,0.15); }
+
+    /* ─── Topping editor ─── */
+    .topping-editor-row {
+      display: grid; grid-template-columns: 1fr 80px 60px 40px; gap: 12px;
+      align-items: center; padding: 8px 0;
+      border-bottom: 1px solid var(--color-line);
+    }
+    .topping-editor-row input {
+      background: transparent; border: none; border-bottom: 1px solid var(--color-line);
+      color: var(--color-ivory); font-family: var(--font-sans); font-size: 14px;
+      padding: 4px 0; outline: none;
+    }
+    .topping-editor-row input:focus { border-color: var(--color-accent); }
+    .topping-delete-btn {
+      background: transparent; border: none; color: #c44;
+      cursor: pointer; font-size: 16px; padding: 4px;
+    }
+    .category-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 32px; margin-bottom: 12px;
+    }
+    .category-header h3 {
+      font-family: var(--font-serif); font-size: 22px; color: var(--color-ivory);
+    }
+    .add-topping-btn, .add-category-btn {
+      background: transparent; border: 1px dashed var(--color-line);
+      color: var(--color-ivory-dim); padding: 6px 16px; font-size: 11px;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .add-topping-btn:hover, .add-category-btn:hover { border-color: var(--color-accent); color: var(--color-ivory); }
+  </style>
+</head>
+<body>
+
+  <!-- Tab Bar (built dynamically by editor.js) -->
+  <div class="admin-tabs" id="adminTabs"></div>
+
+  <!-- ═══════════ HOME PAGE VIEW ═══════════ -->
+  <div id="view-home" class="admin-view active">
+    <main class="site-shell">
+      <section class="hero container">
+        <div>
+          <div class="hero__eyebrow">Est. 1994 — North Andover, MA</div>
+          <h1 class="hero__title" data-edit-target="heroTitle"></h1>
+          <p class="hero__lead" data-edit-target="heroLead"></p>
+        </div>
+        <div class="hero__meta" data-edit-target="heroMeta"></div>
+      </section>
+
+      <section class="metrics container" id="metrics">
+        <div class="metrics__grid" data-edit-target="metricsGrid"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ═══════════ STORY VIEW ═══════════ -->
+  <div id="view-story" class="admin-view">
+    <main class="site-shell">
+      <section class="story container" id="story" data-edit-target="storySection">
+        <div class="story__index"></div>
+        <h2 class="story__heading"></h2>
+        <p class="story__copy"></p>
+      </section>
+
+      <section class="container" data-edit-target="promiseSection" style="padding: 80px 0 120px; display:grid; grid-template-columns:1fr 1fr; gap:64px; align-items:center;">
+        <div>
+          <img class="story__image" data-edit-target="promiseImage" src="" alt="" loading="lazy" />
+        </div>
+        <div>
+          <div class="story__index" style="margin-bottom:28px;"></div>
+          <h2 class="story__heading" style="font-size: clamp(36px, 4vw, 60px); margin-bottom: 28px;"></h2>
+          <p class="story__copy"></p>
+        </div>
+      </section>
+
+      <section class="container" style="padding: 0 0 120px; display:grid; grid-template-columns:1fr 1fr; gap:64px; align-items:center;">
+        <div>
+          <div class="story__index" style="margin-bottom:28px;">— No. 03 / Visit</div>
+          <h2 class="story__heading" data-edit-target="visitAddress" style="font-size: clamp(36px, 4vw, 60px); margin-bottom: 24px;"></h2>
+          <p class="story__copy" data-edit-target="visitCopy"></p>
+        </div>
+        <div>
+          <img class="story__image" data-edit-target="visitImage" src="" alt="Restaurant interior" loading="lazy" />
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ═══════════ MENU VIEW ═══════════ -->
+  <div id="view-menu" class="admin-view">
+    <main class="site-shell">
+      <section class="menu-header container">
+        <div>
+          <div class="hero__eyebrow">— The Menu / No. 02</div>
+          <h1 class="menu-title">Tonight's<br/><em>selection.</em></h1>
+        </div>
+      </section>
+      <div class="container">
+        <div class="menu-filters" data-filters></div>
+        <div class="menu-grid" data-menu-grid></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ═══════════ CUSTOMIZE VIEW ═══════════ -->
+  <div id="view-customize" class="admin-view">
+    <main class="site-shell">
+      <div class="container" style="padding: 80px 0;">
+        <div class="admin-section-label">Customizer Toppings Editor</div>
+        <p style="color: var(--color-ivory-dim); margin-bottom: 32px; font-size: 14px;">
+          Edit the topping categories and items that customers can choose from when building a custom pizza. Changes are saved when you click Publish.
+        </p>
+        <div>
+          <label style="font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-accent-bright); display: block; margin-bottom: 8px;">Base Price ($)</label>
+          <input type="number" id="customizerBasePrice" style="background: transparent; border: none; border-bottom: 1px solid var(--color-line); color: var(--color-ivory); font-family: var(--font-serif); font-size: 28px; padding: 8px 0; width: 120px; outline: none;" />
+        </div>
+        <div id="customizerEditor"></div>
+        <button class="add-category-btn" id="addCategoryBtn" style="margin-top: 32px;">➕ Add New Category</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- ═══════════ FOOTER VIEW ═══════════ -->
+  <div id="view-footer" class="admin-view">
+    <main class="site-shell">
+      <div class="container" style="padding: 80px 0;">
+        <div class="admin-section-label">Footer Editor</div>
+        <p style="color: var(--color-ivory-dim); margin-bottom: 40px; font-size: 14px;">
+          Edit the information shown in the footer across all pages.
+        </p>
+        <footer class="footer" style="position: static;">
+          <div class="container footer__grid" data-edit-target="footerGrid"></div>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <!-- ═══════════ CUSTOM PAGES (generated dynamically) ═══════════ -->
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+  <script src="editor.js"></script>
+  <script>
+    // Toast
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('is-visible');
+      setTimeout(() => t.classList.remove('is-visible'), 2800);
+    }
+    window.showToast = showToast;
+  </script>
+</body>
+</html>

@@ -1,0 +1,338 @@
+{
+  "heroTitle": "A faster<br><em>fire.</em><br>A finer slice.",
+  "heroLead": "Forty-eight-hour cold-fermented dough. Hand-milled San Marzano. Basil cut at sunrise. We make one thing, and we make it without compromise.",
+  "visitCopy": "Walk in any night until midnight. No bookings — only seats, slices, and the occasional spare amaro.",
+  "visitAddress": "9 High Street",
+  "visitCity": "North Andover, MA.",
+  "heroMeta": [
+    "48-Hour Cold Ferment",
+    "Wood-Fired at 900°F",
+    "Open Until Midnight"
+  ],
+  "metrics": [
+    {
+      "value": 0,
+      "label": "Pizzas Crafted Today",
+      "suffix": ""
+    },
+    {
+      "value": 0,
+      "label": "Dough Ferment Time",
+      "suffix": "h"
+    },
+    {
+      "value": 0,
+      "label": "Seasonal Ingredients",
+      "suffix": ""
+    },
+    {
+      "value": 0,
+      "label": "Years of Practice",
+      "suffix": ""
+    }
+  ],
+  "storySection": {
+    "eyebrow": "— No. 01 / Our Story",
+    "heading": "Made with <em>intention.</em>",
+    "copy": "We don't rush. We don't compromise. Every element—from the 48-hour ferment to the hand-milled flour—is chosen because it matters. Slow pizza, done right.",
+    "image": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=900&q=85&auto=format&fit=crop"
+  },
+  "promiseSection": {
+    "eyebrow": "— No. 02 / The Promise",
+    "heading": "Slow on purpose.<br><em>Always.</em>",
+    "copy": "We don't deliver in thirty minutes. We deliver when the pie is ready. That difference is the entire point.",
+    "image": "https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?w=900&q=85&auto=format&fit=crop"
+  },
+  "visitSection": {
+    "eyebrow": "— No. 03 / Visit",
+    "image": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=900&q=85&auto=format&fit=crop"
+  },
+  "footer": {
+    "brand": "Stachey's",
+    "tagline": "Handcrafted pizza since 1994.",
+    "locations": [
+      {
+        "label": "North Andover",
+        "address": "9 High Street",
+        "city": "North Andover, MA 01845",
+        "hours": "Mon–Thu 11am–10pm",
+        "hours2": "Fri–Sun 11am–11pm",
+        "phone": "(978) 686-8301"
+      },
+      {
+        "label": "Salem",
+        "address": "517 S Broadway",
+        "city": "Salem, NH 03079",
+        "hours": "Mon–Thu 11am–10pm",
+        "hours2": "Fri–Sun 11am–11pm",
+        "phone": "(603) 893-1999"
+      }
+    ],
+    "email": "hello@stacheys.com",
+    "social": {
+      "instagram": "https://instagram.com/stacheyspizza",
+      "facebook": "https://facebook.com/stacheyspizza",
+      "yelp": "https://yelp.com/biz/stacheys-pizza"
+    },
+    "legal": "© 2026 Stachey's Pizza"
+  },
+  "customizerBasePrice": 16,
+  "customizerCategories": [
+    {
+      "id": "bases",
+      "name": "Bases",
+      "toppings": [
+        {
+          "name": "Tomato",
+          "price": 0,
+          "isBase": true
+        },
+        {
+          "name": "White Cream",
+          "price": 2,
+          "isBase": true
+        }
+      ]
+    },
+    {
+      "id": "cheeses",
+      "name": "Cheeses",
+      "toppings": [
+        {
+          "name": "Shredded Mozzarella",
+          "price": 2
+        },
+        {
+          "name": "Fresh Mozzarella",
+          "price": 3
+        },
+        {
+          "name": "Pecorino Romano",
+          "price": 3
+        },
+        {
+          "name": "Burrata",
+          "price": 5
+        }
+      ]
+    },
+    {
+      "id": "meats",
+      "name": "Meats",
+      "toppings": [
+        {
+          "name": "Pepperoni",
+          "price": 3
+        },
+        {
+          "name": "Italian Sausage",
+          "price": 3
+        },
+        {
+          "name": "Soppressata",
+          "price": 4
+        },
+        {
+          "name": "Prosciutto",
+          "price": 6
+        },
+        {
+          "name": "N'duja",
+          "price": 5
+        }
+      ]
+    },
+    {
+      "id": "vegetables",
+      "name": "Vegetables",
+      "toppings": [
+        {
+          "name": "Mushrooms",
+          "price": 2
+        },
+        {
+          "name": "Green Peppers",
+          "price": 2
+        },
+        {
+          "name": "Red Onion",
+          "price": 2
+        },
+        {
+          "name": "Black Olives",
+          "price": 2
+        },
+        {
+          "name": "Cherry Tomatoes",
+          "price": 2
+        },
+        {
+          "name": "Spinach",
+          "price": 2
+        },
+        {
+          "name": "Roasted Garlic",
+          "price": 2
+        },
+        {
+          "name": "Calabrian Chili",
+          "price": 2
+        }
+      ]
+    },
+    {
+      "id": "herbs",
+      "name": "Fresh Herbs",
+      "toppings": [
+        {
+          "name": "Basil",
+          "price": 1
+        },
+        {
+          "name": "Arugula",
+          "price": 2
+        }
+      ]
+    }
+  ],
+  "menuTabs": [
+    {
+      "id": "all",
+      "label": "All"
+    },
+    {
+      "id": "red",
+      "label": "Red Pies"
+    },
+    {
+      "id": "white",
+      "label": "White Pies"
+    },
+    {
+      "id": "sides",
+      "label": "Sides"
+    },
+    {
+      "id": "greens",
+      "label": "Greens"
+    }
+  ],
+  "menuItems": [
+    {
+      "id": "margherita",
+      "name": "Margherita",
+      "category": "red",
+      "price": 18,
+      "ingredients": "San Marzano, fresh mozzarella, basil, olive oil",
+      "tag": "House Classic",
+      "image": "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=600&q=80&auto=format&fit=crop"
+    },
+    {
+      "id": "soppressata",
+      "name": "Pepperoni Pizza",
+      "category": "red",
+      "price": 22,
+      "ingredients": "Spicy soppressata, tomato, mozzarella, hot honey",
+      "tag": "Best Seller",
+      "image": "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=600&q=80&auto=format&fit=crop"
+    },
+    {
+      "id": "marinara",
+      "name": "Marinara",
+      "category": "red",
+      "price": 15,
+      "ingredients": "Tomato, garlic, oregano, olive oil — no cheese",
+      "tag": "",
+      "image": "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&q=80&auto=format&fit=crop"
+    },
+    {
+      "id": "norma",
+      "name": "Alla Norma",
+      "category": "red",
+      "price": "0",
+      "ingredients": "Tomato, roasted eggplant, ricotta salata, basil",
+      "tag": "Seasonal",
+      "image": "https://images.unsplash.com/photo-1548369937-47519962c11a?w=600&q=80&auto=format&fit=crop"
+    },
+    {
+      "id": "bianca",
+      "name": "Bianca",
+      "category": "white",
+      "price": 19,
+      "ingredients": "Cream, mozzarella, pecorino, cracked pepper",
+      "tag": "",
+      "image": "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&q=80&auto=format&fit=crop"
+    },
+    {
+      "id": "mushroom",
+      "name": "Fungi al Tartufo",
+      "category": "white",
+      "price": 24,
+      "ingredients": "Cream, wild mushroom, truffle, thyme",
+      "tag": "Premium",
+      "image": "https://images.unsplash.com/photo-1506354666786-959d6d497f1a?w=600&q=80&auto=format&fit=crop"
+    },
+    {
+      "id": "prosciutto",
+      "name": "Prosciutto e Rucola",
+      "category": "white",
+      "price": 23,
+      "ingredients": "Mozzarella, prosciutto di Parma, arugula, lemon",
+      "tag": "",
+      "image": "https://images.unsplash.com/photo-1542834369-f10ebf06d3e0?w=600&q=80&auto=format&fit=crop"
+    },
+    {
+      "id": "meatballs",
+      "name": "House Meatballs",
+      "category": "sides",
+      "price": 12,
+      "ingredients": "Beef and pork, San Marzano sugo, ricotta",
+      "tag": "",
+      "image": "https://images.unsplash.com/photo-1529042410759-befb1204b468?w=600&q=80&auto=format&fit=crop"
+    },
+    {
+      "id": "focaccia",
+      "name": "Rosemary Focaccia",
+      "category": "sides",
+      "price": "500",
+      "ingredients": "Sea salt, rosemary, extra virgin olive oil",
+      "tag": "",
+      "image": "https://images.unsplash.com/photo-1532465614-6cc8d45f647f?w=600&q=80&auto=format&fit=crop"
+    },
+    {
+      "id": "burrata",
+      "name": "Burrata & Tomato",
+      "category": "sides",
+      "price": 12,
+      "ingredients": "Heirloom tomato, burrata, basil oil, sea salt",
+      "tag": "Seasonal",
+      "image": "https://images.unsplash.com/photo-1549590143-d5855148a9d5?w=600&q=80&auto=format&fit=crop"
+    },
+    {
+      "id": "caesar",
+      "name": "Caesar",
+      "category": "greens",
+      "price": 13,
+      "ingredients": "Little gem, anchovy, parmigiano, sourdough crumb",
+      "tag": "",
+      "image": "https://images.unsplash.com/photo-1550304943-4f24f54ddde9?w=600&q=80&auto=format&fit=crop"
+    },
+    {
+      "id": "tricolore",
+      "name": "Tricolore",
+      "category": "greens",
+      "price": 14,
+      "ingredients": "Arugula, endive, radicchio, lemon vinaigrette",
+      "tag": "",
+      "image": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&q=80&auto=format&fit=crop"
+    }
+  ],
+  "customPages": [
+    {
+      "id": "page_1780263487119",
+      "title": "123",
+      "slug": "123",
+      "sections": []
+    }
+  ]
+}
