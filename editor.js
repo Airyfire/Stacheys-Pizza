@@ -36,6 +36,11 @@
     renderCustomizerEditor();
     renderFooterEditor();
     renderCustomPageViews();
+    
+    // Live orders polling
+    setInterval(refreshOrdersBoard, 10000);
+    refreshOrdersBoard();
+
     document.addEventListener('input', () => { dirty = true; markDirty(); });
     window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
   }
@@ -249,9 +254,10 @@
  
     // Preserve the currently active view across rebuilds
     const curActive = c.querySelector('.admin-tab.active');
-    const activeView = curActive ? curActive.dataset.view : 'home';
+    const activeView = curActive ? curActive.dataset.view : 'orders';
  
     const builtins = [
+      { id:'orders', label:'Orders 📋' },
       { id:'home', label:'Home' }, { id:'story', label:'Story' },
       { id:'menu', label:'Menu' }, { id:'customize', label:'Customizer' },
       { id:'footer', label:'Footer' }
@@ -286,6 +292,9 @@
     const v = document.getElementById('view-' + id);
     if (v) v.classList.add('active');
     if (btn) btn.classList.add('active');
+    if (id === 'orders') {
+      refreshOrdersBoard();
+    }
   }
  
   // ── Home ───────────────────────────────────────────────────
@@ -817,6 +826,218 @@
       view.querySelector(`[data-del-page]`).addEventListener('click',()=>{ if(!confirm(`Delete "${page.title}"?`)) return; siteData.customPages=siteData.customPages.filter(p=>p.id!==page.id); dirty=true; markDirty(); buildTabs(); renderCustomPageViews(); switchView('home',document.querySelector('[data-view="home"]')); });
       view.querySelectorAll('[data-add-img]').forEach(el=>{ el.addEventListener('click',()=>{ const idx=parseInt(el.dataset.addImg); const url=prompt('Image URL:',page.sections[idx]&&page.sections[idx].image||''); if(url!==null){page.sections[idx].image=url; dirty=true; markDirty(); renderCustomPageViews(); switchView('custom-'+page.id,document.querySelector(`[data-view="custom-${page.id}"]`));} }); });
     });
+  }
+
+  // ════════════════════════════════════════════════════════════
+  //  ORDERS DASHBOARD LOGIC
+  // ════════════════════════════════════════════════════════════
+  let knownOrderIds = new Set();
+  let firstOrderLoad = true;
+
+  function playNewOrderChime() {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+      gain1.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start();
+      osc1.stop(ctx.currentTime + 0.35);
+      
+      setTimeout(() => {
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(659.25, ctx.currentTime); // E5
+        gain2.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start();
+        osc2.stop(ctx.currentTime + 0.45);
+      }, 150);
+    } catch (e) {
+      console.warn('Web Audio playback failed or blocked:', e);
+    }
+  }
+
+  function formatTime(isoString) {
+    try {
+      const d = new Date(isoString);
+      const diffMs = Date.now() - d.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      const diffHours = Math.floor(diffMins / 60);
+      if (diffHours < 24) return `${diffHours}h ago`;
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  }
+
+  async function updateOrderStatus(orderId, nextStatus) {
+    try {
+      const res = await fetch('/api/orders/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, status: nextStatus })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        refreshOrdersBoard();
+        if (window.showToast) window.showToast(`Order status updated to "${nextStatus}"`);
+      } else {
+        alert('Failed to update order status: ' + data.error);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error communicating with server.');
+    }
+  }
+
+  async function refreshOrdersBoard() {
+    const listNew = document.getElementById('list-new');
+    if (!listNew) return; // Not on admin page or not fully initialized
+
+    try {
+      const res = await fetch('/api/orders?' + Date.now());
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.ok || !data.orders) return;
+
+      const orders = data.orders;
+      
+      // Check for new orders to trigger audio chime
+      let hasNewOrder = false;
+      orders.forEach(order => {
+        if (!knownOrderIds.has(order.id)) {
+          knownOrderIds.add(order.id);
+          if (!firstOrderLoad) {
+            hasNewOrder = true;
+          }
+        }
+      });
+      
+      if (firstOrderLoad) {
+        firstOrderLoad = false;
+      }
+
+      if (hasNewOrder) {
+        playNewOrderChime();
+        if (window.showToast) window.showToast('🍕 New order received!');
+      }
+
+      // Group orders by status
+      const grouped = { new: [], preparing: [], ready: [], completed: [] };
+      orders.forEach(order => {
+        if (grouped[order.status]) {
+          grouped[order.status].push(order);
+        }
+      });
+
+      // Update counters
+      ['new', 'preparing', 'ready', 'completed'].forEach(status => {
+        const countSpan = document.getElementById(`count-${status}`);
+        if (countSpan) countSpan.textContent = grouped[status].length;
+      });
+
+      // Render cards in columns
+      ['new', 'preparing', 'ready', 'completed'].forEach(status => {
+        const listContainer = document.getElementById(`list-${status}`);
+        if (!listContainer) return;
+
+        const columnOrders = grouped[status];
+        if (columnOrders.length === 0) {
+          listContainer.innerHTML = `<div style="color:var(--color-ivory-muted); font-size:12px; text-align:center; padding: 24px 0; border: 1px dashed var(--color-line);">Empty</div>`;
+          return;
+        }
+
+        listContainer.innerHTML = columnOrders.map(order => {
+          const formattedItems = order.items.map(it => `
+            <div class="order-card-item">
+              <div>
+                <span class="order-card-item-name">${esc(it.name)}</span>
+                ${it.meta ? `<span class="order-card-item-meta">${esc(it.meta)}</span>` : ''}
+              </div>
+              <span style="font-family:var(--font-serif);">$${parseFloat(it.price).toFixed(2)}</span>
+            </div>
+          `).join('');
+
+          let actionBtn = '';
+          if (status === 'new') {
+            actionBtn = `<button class="order-card-btn" data-action-id="${order.id}" data-action-status="preparing">Accept &amp; Prepare 🍕</button>`;
+          } else if (status === 'preparing') {
+            actionBtn = `<button class="order-card-btn" data-action-id="${order.id}" data-action-status="ready">Mark as Ready 📦</button>`;
+          } else if (status === 'ready') {
+            actionBtn = `<button class="order-card-btn" data-action-id="${order.id}" data-action-status="completed">Complete Order ✓</button>`;
+          }
+
+          const deliveryDetails = order.orderType === 'delivery'
+            ? `<div style="margin-top:4px;"><strong>Address:</strong> ${esc(order.deliveryAddress)}</div>`
+            : '';
+
+          const paymentBadge = order.stripeSessionId
+            ? `<span class="badge badge--paid">Card / Paid</span>`
+            : `<span class="badge badge--cash">Cash</span>`;
+
+          const typeBadge = order.orderType === 'delivery'
+            ? `<span class="badge badge--delivery">Delivery</span>`
+            : `<span class="badge badge--pickup">Pickup</span>`;
+
+          return `
+            <div class="order-card" id="card-${order.id}">
+              <div class="order-card-header">
+                <span class="order-card-id">${esc(order.id)}</span>
+                <span class="order-card-time">${formatTime(order.createdAt)}</span>
+              </div>
+              <div class="order-card-details">
+                <div><strong>Customer:</strong> ${esc(order.customer.name)}</div>
+                <div><strong>Phone:</strong> <a href="tel:${esc(order.customer.phone)}" style="color:var(--color-accent-bright); text-decoration:underline;">${esc(order.customer.phone)}</a></div>
+                <div style="display:flex; gap: 8px; margin-top: 4px;">
+                  ${typeBadge}
+                  ${paymentBadge}
+                </div>
+                ${deliveryDetails}
+              </div>
+              <div class="order-card-items">
+                ${formattedItems}
+                ${order.orderType === 'delivery' ? `
+                  <div class="order-card-item" style="border-top:1px dashed var(--color-line); padding-top:6px; margin-top:4px;">
+                    <span style="color:var(--color-ivory-muted);">Delivery Fee</span>
+                    <span style="font-family:var(--font-serif);">$4.00</span>
+                  </div>
+                ` : ''}
+              </div>
+              <div class="order-card-total-row">
+                <span style="font-size:10px; color:var(--color-ivory-muted); text-transform:uppercase; letter-spacing:0.1em;">Total</span>
+                <span class="order-card-total">$${parseFloat(order.total).toFixed(2)}</span>
+              </div>
+              ${actionBtn}
+            </div>
+          `;
+        }).join('');
+      });
+
+      // Hook up card buttons
+      document.querySelectorAll('[data-action-id][data-action-status]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.actionId;
+          const targetStatus = btn.dataset.actionStatus;
+          updateOrderStatus(id, targetStatus);
+        });
+      });
+
+    } catch (err) {
+      console.error("Error refreshing orders board:", err);
+    }
   }
  
   // ════════════════════════════════════════════════════════════

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Confirmed — Stachey's Pizza</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .success-container {
+      max-width: 680px;
+      margin: 120px auto 80px;
+      padding: 0 24px;
+    }
+    .success-card {
+      background: var(--color-bg-alt);
+      border: 1px solid var(--color-line);
+      padding: 48px;
+      text-align: center;
+      box-shadow: 0 20px 50px var(--color-shadow);
+      position: relative;
+    }
+    .success-card::before {
+      content: '';
+      position: absolute;
+      inset: 12px;
+      border: 1px solid var(--color-line);
+      pointer-events: none;
+    }
+    .success-icon {
+      font-size: 56px;
+      margin-bottom: 24px;
+      animation: bounceIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .success-title {
+      font-family: var(--font-serif);
+      font-size: clamp(32px, 5vw, 48px);
+      margin-bottom: 12px;
+      letter-spacing: -0.01em;
+    }
+    .success-sub {
+      color: var(--color-ivory-dim);
+      font-size: 15px;
+      margin-bottom: 32px;
+      line-height: 1.7;
+    }
+    
+    /* ─── LIVE TRACKER ─── */
+    .tracker {
+      margin: 40px 0 24px;
+      border-top: 1px solid var(--color-line);
+      border-bottom: 1px solid var(--color-line);
+      padding: 32px 0;
+    }
+    .tracker-title {
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--color-accent-bright);
+      margin-bottom: 24px;
+    }
+    .tracker-steps {
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+      margin-bottom: 12px;
+    }
+    .tracker-steps::before {
+      content: '';
+      position: absolute;
+      top: 15px;
+      left: 10%;
+      right: 10%;
+      height: 2px;
+      background: var(--color-line);
+      z-index: 1;
+    }
+    .tracker-progress-bar {
+      position: absolute;
+      top: 15px;
+      left: 10%;
+      height: 2px;
+      background: var(--color-accent-bright);
+      z-index: 1;
+      width: 0%;
+      transition: width 0.8s var(--ease-out);
+    }
+    .tracker-step {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+    }
+    .tracker-dot {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--color-bg-alt);
+      border: 2px solid var(--color-line);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: var(--color-ivory-muted);
+      transition: all 0.4s var(--ease-out);
+    }
+    .tracker-label {
+      margin-top: 10px;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--color-ivory-muted);
+      transition: color 0.4s var(--ease-out);
+    }
+    
+    /* Active Tracker States */
+    .tracker-step.active .tracker-dot {
+      border-color: var(--color-accent-bright);
+      background: var(--color-accent);
+      color: var(--color-ivory);
+      box-shadow: 0 0 15px rgba(122, 154, 110, 0.4);
+    }
+    .tracker-step.active .tracker-label {
+      color: var(--color-ivory);
+    }
+    .tracker-step.completed .tracker-dot {
+      border-color: var(--color-accent-bright);
+      background: var(--color-accent-bright);
+      color: var(--color-bg);
+    }
+    .tracker-step.completed .tracker-label {
+      color: var(--color-accent-bright);
+    }
+
+    /* ─── SUMMARY BLOCK ─── */
+    .summary-block {
+      background: var(--color-bg);
+      border: 1px solid var(--color-line);
+      padding: 24px;
+      text-align: left;
+      margin-bottom: 32px;
+    }
+    .summary-title {
+      font-size: 10px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--color-accent-bright);
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--color-line);
+      padding-bottom: 8px;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: var(--color-ivory-dim);
+    }
+    .summary-row.total {
+      border-top: 1px solid var(--color-line);
+      padding-top: 12px;
+      margin-top: 12px;
+      margin-bottom: 0;
+      color: var(--color-ivory);
+    }
+    
+    @keyframes bounceIn {
+      from { opacity: 0; transform: scale(0.3); }
+      50% { opacity: 0.9; transform: scale(1.1); }
+      70% { transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <header class="nav scrolled" id="mainNav">
+    <a class="nav__brand" href="index.html">Stachey's <strong>Pizza</strong></a>
+    <nav class="nav__links">
+      <a class="nav__link" href="index.html">Home</a>
+      <a class="nav__link" href="menu.html">Menu</a>
+      <a class="nav__link" href="menu.html#customize">Customize</a>
+      <a class="nav__link" href="index.html#story">Our Story</a>
+    </nav>
+    <div>
+      <a class="btn btn--ghost" href="menu.html" style="padding: 10px 18px; font-size: 12px;">Menu</a>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <div class="success-container">
+      <div class="success-card">
+        <div class="success-icon">🍕</div>
+        <h1 class="success-title">Order Confirmed</h1>
+        <p class="success-sub" id="successDesc">We've received your order and are heating up the brick oven. Below is your tracker and receipt summary.</p>
+        
+        <!-- Live Tracker -->
+        <div class="tracker">
+          <div class="tracker-title">Live Order Tracker</div>
+          <div class="tracker-steps">
+            <div class="tracker-progress-bar" id="progressBar"></div>
+            <div class="tracker-step" id="step-new">
+              <div class="tracker-dot">1</div>
+              <div class="tracker-label">Received</div>
+            </div>
+            <div class="tracker-step" id="step-preparing">
+              <div class="tracker-dot">2</div>
+              <div class="tracker-label">Preparing</div>
+            </div>
+            <div class="tracker-step" id="step-ready">
+              <div class="tracker-dot">3</div>
+              <div class="tracker-label">Ready</div>
+            </div>
+            <div class="tracker-step" id="step-completed">
+              <div class="tracker-dot">4</div>
+              <div class="tracker-label">Completed</div>
+            </div>
+          </div>
+          <div style="font-size: 12px; color: var(--color-ivory-muted);" id="etaText">
+            Estimated time: Calculating...
+          </div>
+        </div>
+        
+        <!-- Summary Block -->
+        <div class="summary-block" id="receiptSummary">
+          <div class="summary-title">Order Details</div>
+          <div id="receiptItems">
+            <!-- Items loaded dynamically -->
+          </div>
+          <div class="summary-row total">
+            <span style="font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--color-ivory-muted);">Total Paid</span>
+            <span style="font-family:var(--font-serif); font-size:22px;" id="receiptTotal">$0.00</span>
+          </div>
+        </div>
+        
+        <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+          <a class="btn btn--accent" href="index.html">Back to Home</a>
+          <button class="btn btn--ghost" onclick="window.print()">Print Receipt</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__grid" id="footerGrid">
+      <!-- Footer loaded from site-data.json if needed, otherwise fallback static legal -->
+      <div style="grid-column: 1 / -1; text-align: center; color: var(--color-ivory-muted); font-size: 11px;">
+        © 2026 Stachey's Pizza. Hand-crafted in North Andover, MA. All rights reserved.
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // Clear the local cart drawer
+      localStorage.removeItem('stacheys.cart');
+
+      // Parse order_id from URL
+      const params = new URLSearchParams(window.location.search);
+      const orderId = params.get('order_id');
+      
+      if (!orderId) {
+        document.getElementById('successDesc').textContent = "Thank you for your order! We appreciate your business.";
+        document.querySelector('.tracker').style.display = 'none';
+        document.querySelector('.summary-block').style.display = 'none';
+        return;
+      }
+
+      // Display the order id
+      document.getElementById('successDesc').innerHTML = `Thank you for your order! Your Order ID is <strong style="color:var(--color-accent-bright); letter-spacing: 0.05em;">${orderId}</strong>.<br/>We've sent your receipt and will get started right away.`;
+
+      function updateStatusUI(status, type) {
+        const steps = ['new', 'preparing', 'ready', 'completed'];
+        const currentIdx = steps.indexOf(status);
+
+        // Progress bar width
+        const progressBar = document.getElementById('progressBar');
+        if (currentIdx <= 0) progressBar.style.width = '0%';
+        else if (currentIdx === 1) progressBar.style.width = '33%';
+        else if (currentIdx === 2) progressBar.style.width = '66%';
+        else progressBar.style.width = '100%';
+
+        steps.forEach((step, idx) => {
+          const el = document.getElementById(`step-${step}`);
+          if (!el) return;
+
+          el.classList.remove('active', 'completed');
+          if (idx < currentIdx) {
+            el.classList.add('completed');
+            el.querySelector('.tracker-dot').textContent = '✓';
+          } else if (idx === currentIdx) {
+            el.classList.add('active');
+            el.querySelector('.tracker-dot').textContent = idx + 1;
+          } else {
+            el.querySelector('.tracker-dot').textContent = idx + 1;
+          }
+        });
+
+        // ETA Text
+        const etaText = document.getElementById('etaText');
+        if (status === 'completed') {
+          etaText.textContent = "Your order has been completed! Enjoy your pie!";
+        } else if (status === 'ready') {
+          etaText.textContent = type === 'delivery' ? "Out for delivery! Arriving shortly." : "Your order is ready for pickup! Come on in!";
+        } else if (status === 'preparing') {
+          etaText.textContent = type === 'delivery' ? "In the oven. Estimated delivery: 35–45 min" : "In the oven. Ready for pickup in 10–15 min";
+        } else {
+          etaText.textContent = type === 'delivery' ? "Order received. Estimated delivery: 45–60 min" : "Order received. Ready for pickup in 25–35 min";
+        }
+      }
+
+      function fetchOrderDetails() {
+        fetch('/api/orders')
+          .then(res => res.ok ? res.json() : Promise.reject())
+          .then(data => {
+            if (!data.ok || !data.orders) return;
+            const order = data.orders.find(o => o.id === orderId);
+            if (!order) return;
+
+            // Render items
+            const itemsContainer = document.getElementById('receiptItems');
+            itemsContainer.innerHTML = order.items.map(it => `
+              <div class="summary-row">
+                <span>${it.name} ${it.meta ? `<small style="display:block; font-size:11px; color:var(--color-ivory-muted);">${it.meta}</small>` : ''}</span>
+                <span style="font-family:var(--font-serif);">$${parseFloat(it.price).toFixed(2)}</span>
+              </div>
+            `).join('');
+
+            // Add delivery fee if applicable
+            if (order.orderType === 'delivery') {
+              itemsContainer.innerHTML += `
+                <div class="summary-row" style="border-top: 1px dashed var(--color-line); padding-top: 10px; margin-top: 10px;">
+                  <span>Delivery Fee</span>
+                  <span style="font-family:var(--font-serif);">$4.00</span>
+                </div>
+              `;
+            }
+
+            // Display total
+            document.getElementById('receiptTotal').textContent = `$${parseFloat(order.total).toFixed(2)}`;
+
+            // Update tracker
+            updateStatusUI(order.status, order.orderType);
+          })
+          .catch(err => console.error("Error loading order summary:", err));
+      }
+
+      // Initial load
+      fetchOrderDetails();
+
+      // Poll every 10 seconds for live order status updates
+      setInterval(fetchOrderDetails, 10000);
+    })();
+  </script>
+</body>
+</html>

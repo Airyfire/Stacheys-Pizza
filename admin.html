@@ -113,6 +113,179 @@
       cursor: pointer; transition: all 0.2s;
     }
     .add-topping-btn:hover, .add-category-btn:hover { border-color: var(--color-accent); color: var(--color-ivory); }
+
+    /* ─── Orders Kanban Board ─── */
+    .orders-board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-top: 24px;
+      align-items: start;
+    }
+    .orders-column {
+      background: var(--color-bg-alt);
+      border: 1px solid var(--color-line);
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      max-height: 80vh;
+    }
+    .orders-column-header {
+      font-family: var(--font-serif);
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--color-ivory);
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--color-line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255,255,255,0.02);
+    }
+    .orders-count {
+      font-family: var(--font-sans);
+      font-size: 11px;
+      background: var(--color-line);
+      color: var(--color-ivory-dim);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+    .orders-cards-list {
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-height: 200px;
+    }
+    
+    /* ─── Order Cards ─── */
+    .order-card {
+      background: var(--color-bg);
+      border: 1px solid var(--color-line);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    }
+    .order-card:hover {
+      border-color: var(--color-accent-bright);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+    }
+    .order-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px dashed var(--color-line);
+      padding-bottom: 8px;
+    }
+    .order-card-id {
+      font-family: var(--font-sans);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--color-accent-bright);
+    }
+    .order-card-time {
+      font-size: 10px;
+      color: var(--color-ivory-muted);
+    }
+    .order-card-details {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 13px;
+      color: var(--color-ivory-dim);
+    }
+    .order-card-items {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin: 4px 0;
+      padding: 8px 0;
+      border-bottom: 1px dashed var(--color-line);
+      border-top: 1px dashed var(--color-line);
+    }
+    .order-card-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+    .order-card-item-name {
+      font-weight: 500;
+      color: var(--color-ivory);
+    }
+    .order-card-item-meta {
+      font-size: 10px;
+      color: var(--color-ivory-muted);
+      display: block;
+      margin-top: 2px;
+    }
+    .order-card-total-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .order-card-total {
+      font-family: var(--font-serif);
+      font-size: 18px;
+      color: var(--color-accent-bright);
+    }
+    .order-card-btn {
+      width: 100%;
+      background: var(--color-accent);
+      border: 1px solid var(--color-accent);
+      color: var(--color-ivory);
+      padding: 10px 0;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .order-card-btn:hover {
+      background: var(--color-accent-bright);
+      border-color: var(--color-accent-bright);
+    }
+    .order-card-btn--secondary {
+      background: transparent;
+      border-color: var(--color-line);
+      color: var(--color-ivory-dim);
+    }
+    .order-card-btn--secondary:hover {
+      background: rgba(255,255,255,0.05);
+      border-color: var(--color-ivory);
+      color: var(--color-ivory);
+    }
+    
+    .badge {
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 2px;
+      font-weight: 600;
+      display: inline-block;
+    }
+    .badge--delivery { background: rgba(90, 122, 82, 0.2); color: var(--color-accent-bright); border: 1px solid rgba(90, 122, 82, 0.4); }
+    .badge--pickup { background: rgba(245, 239, 225, 0.08); color: var(--color-ivory-dim); border: 1px solid var(--color-line); }
+    .badge--paid { background: rgba(122, 154, 110, 0.15); color: #8bc34a; border: 1px solid rgba(139,195,74,0.3); }
+    .badge--cash { background: rgba(232, 164, 90, 0.15); color: #e8a45a; border: 1px solid rgba(232,164,90,0.3); }
+
+    @media (max-width: 1100px) {
+      .orders-board {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 600px) {
+      .orders-board {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -120,8 +293,52 @@
   <!-- Tab Bar (built dynamically by editor.js) -->
   <div class="admin-tabs" id="adminTabs"></div>
 
+  <!-- ═══════════ ORDERS DASHBOARD VIEW ═══════════ -->
+  <div id="view-orders" class="admin-view active">
+    <main class="site-shell">
+      <div class="container" style="padding: 80px 0;">
+        <div class="admin-section-label">Live Orders Dashboard</div>
+        
+        <div class="orders-board">
+          <!-- Columns for Kanban board -->
+          <div class="orders-column" id="col-new">
+            <div class="orders-column-header">
+              <span>New Orders</span>
+              <span class="orders-count" id="count-new">0</span>
+            </div>
+            <div class="orders-cards-list" id="list-new"></div>
+          </div>
+          
+          <div class="orders-column" id="col-preparing">
+            <div class="orders-column-header">
+              <span>Preparing</span>
+              <span class="orders-count" id="count-preparing">0</span>
+            </div>
+            <div class="orders-cards-list" id="list-preparing"></div>
+          </div>
+          
+          <div class="orders-column" id="col-ready">
+            <div class="orders-column-header">
+              <span>Ready</span>
+              <span class="orders-count" id="count-ready">0</span>
+            </div>
+            <div class="orders-cards-list" id="list-ready"></div>
+          </div>
+          
+          <div class="orders-column" id="col-completed">
+            <div class="orders-column-header">
+              <span>Completed</span>
+              <span class="orders-count" id="count-completed">0</span>
+            </div>
+            <div class="orders-cards-list" id="list-completed"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
   <!-- ═══════════ HOME PAGE VIEW ═══════════ -->
-  <div id="view-home" class="admin-view active">
+  <div id="view-home" class="admin-view">
     <main class="site-shell">
       <section class="hero container">
         <div>

@@ -28,3 +28,9 @@ build/
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variables (contains Stripe keys)
+.env
+
+# Local order data
+orders.json

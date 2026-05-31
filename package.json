@@ -1,0 +1,14 @@
+{
+  "name": "stacheys-pizza",
+  "version": "1.0.0",
+  "description": "Stachey's Pizza — Hand-crafted in North Andover",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "stripe": "^17.5.0",
+    "dotenv": "^16.4.7"
+  }
+}

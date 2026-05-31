@@ -249,16 +249,7 @@
               </label>
             </div>
           </div>
-          <div id="cardSection" style="display:none;">
-            <div class="order-form__section">
-              <span class="order-form__label">Card Details</span>
-              <input class="order-form__input" type="text" placeholder="Card number" style="width:100%;" maxlength="19" id="cardNum" />
-              <div class="order-form__row" style="margin-top:16px;">
-                <input class="order-form__input" type="text" placeholder="MM / YY" maxlength="7" id="cardExp" />
-                <input class="order-form__input" type="text" placeholder="CVV" maxlength="4" id="cardCvv" />
-              </div>
-            </div>
-          </div>
+
           <div class="order-form__section" style="background: var(--color-bg); border: 1px solid var(--color-line); padding: 20px;">
             <span class="order-form__label">Order Summary</span>
             <div id="modalCartItems" style="margin-bottom:12px;"></div>
@@ -286,120 +277,6 @@
   </div>
 
   <script src="app.js"></script>
-  <script>
-    // ─── NAV SCROLL ───
-    const nav = document.getElementById('mainNav');
-    window.addEventListener('scroll', () => {
-      nav.classList.toggle('scrolled', window.scrollY > 60);
-    }, { passive: true });
-
-    // ─── HAMBURGER ───
-    const hamburger = document.getElementById('hamburgerBtn');
-    const mobileMenu = document.getElementById('mobileMenu');
-    hamburger.addEventListener('click', () => {
-      mobileMenu.classList.toggle('is-open');
-      hamburger.textContent = mobileMenu.classList.contains('is-open') ? 'Close' : 'Menu';
-    });
-    mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
-      mobileMenu.classList.remove('is-open');
-      hamburger.textContent = 'Menu';
-    }));
-
-    // ─── TOAST ───
-    function showToast(msg) {
-      const t = document.getElementById('toast');
-      t.textContent = msg;
-      t.classList.add('is-visible');
-      setTimeout(() => t.classList.remove('is-visible'), 2800);
-    }
-    window.showToast = showToast;
-
-    // ─── ORDER MODAL ───
-    const modal = document.getElementById('orderModal');
-    const modalScrim = document.getElementById('modalScrim');
-    const modalClose = document.getElementById('modalClose');
-    const placeOrderBtn = document.getElementById('placeOrderBtn');
-    const confirmBtn = document.getElementById('confirmOrderBtn');
-    const orderSuccess = document.getElementById('orderSuccess');
-    const orderFormWrap = document.getElementById('orderFormWrap');
-    const successClose = document.getElementById('successClose');
-
-    function openModal() {
-      const items = JSON.parse(localStorage.getItem('stacheys.cart') || '[]');
-      if (!items.length) { showToast('Add items to your order first'); return; }
-      const container = document.getElementById('modalCartItems');
-      container.innerHTML = items.map(it => `
-        <div style="display:flex; justify-content:space-between; padding: 8px 0; border-bottom: 1px solid var(--color-line); font-size:14px;">
-          <span style="color:var(--color-ivory-dim);">${it.name}</span>
-          <span style="font-family:var(--font-serif);">$${it.price.toFixed(2)}</span>
-        </div>
-      `).join('');
-      const total = items.reduce((s,i) => s + i.price, 0);
-      document.getElementById('modalTotal').textContent = `$${total.toFixed(2)}`;
-      modal.classList.add('is-open');
-      document.body.style.overflow = 'hidden';
-    }
-
-    function closeModal() {
-      modal.classList.remove('is-open');
-      document.body.style.overflow = '';
-      orderSuccess.classList.remove('is-visible');
-      orderFormWrap.style.display = '';
-    }
-
-    placeOrderBtn.addEventListener('click', openModal);
-    modalClose.addEventListener('click', closeModal);
-    modalScrim.addEventListener('click', closeModal);
-    successClose.addEventListener('click', closeModal);
-
-    document.querySelectorAll('#orderTypeGroup .order-form__radio').forEach(label => {
-      label.addEventListener('click', () => {
-        document.querySelectorAll('#orderTypeGroup .order-form__radio').forEach(l => l.classList.remove('selected'));
-        label.classList.add('selected');
-        document.getElementById('deliverySection').style.display = label.dataset.type === 'delivery' ? 'block' : 'none';
-      });
-    });
-
-    document.querySelectorAll('#payGroup .order-form__radio').forEach(label => {
-      label.addEventListener('click', () => {
-        document.querySelectorAll('#payGroup .order-form__radio').forEach(l => l.classList.remove('selected'));
-        label.classList.add('selected');
-        document.getElementById('cardSection').style.display = label.dataset.pay === 'card' ? 'block' : 'none';
-      });
-    });
-
-    const cardInput = document.getElementById('cardNum');
-    if (cardInput) {
-      cardInput.addEventListener('input', (e) => {
-        let v = e.target.value.replace(/\D/g,'').substring(0,16);
-        e.target.value = v.replace(/(.{4})/g,'$1 ').trim();
-      });
-    }
-    const expInput = document.getElementById('cardExp');
-    if (expInput) {
-      expInput.addEventListener('input', (e) => {
-        let v = e.target.value.replace(/\D/g,'').substring(0,4);
-        if (v.length >= 2) v = v.substring(0,2) + ' / ' + v.substring(2);
-        e.target.value = v;
-      });
-    }
-
-    confirmBtn.addEventListener('click', () => {
-      const fname = document.getElementById('fName').value.trim();
-      const phone = document.getElementById('phone').value.trim();
-      if (!fname || !phone) { showToast('Please fill in your name and phone'); return; }
-      const type = document.querySelector('#orderTypeGroup .order-form__radio.selected').dataset.type;
-      const eta = type === 'delivery' ? '45–60 min' : '25–35 min';
-      document.getElementById('etaText').textContent = `Ready in ${eta}`;
-      document.getElementById('successMsg').innerHTML = `Thanks, ${fname}! Your order is confirmed.<br/>We'll text you at ${phone} when it's ready.`;
-      orderFormWrap.style.display = 'none';
-      orderSuccess.classList.add('is-visible');
-      localStorage.removeItem('stacheys.cart');
-      document.querySelectorAll('[data-cart-count]').forEach(el => el.textContent = '(0)');
-      document.querySelectorAll('[data-cart-total]').forEach(el => el.textContent = '$0.00');
-      const body = document.querySelector('[data-cart-body]');
-      if (body) body.innerHTML = '<div style="color: var(--color-ivory-muted); font-size: 14px;">No items yet. Choose your pies from the menu.</div>';
-    });
   </script>
 </body>
 </html>

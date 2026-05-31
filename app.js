@@ -699,6 +699,214 @@
     })
     .catch(() => { /* Silent fallback to static HTML */ });
 
+  // ---------- Navigation Scroll ----------
+  const navScroll = document.getElementById('mainNav');
+  if (navScroll) {
+    window.addEventListener('scroll', () => {
+      navScroll.classList.toggle('scrolled', window.scrollY > 60);
+    }, { passive: true });
+  }
+
+  // ---------- Mobile Hamburger ----------
+  const hamburger = document.getElementById('hamburgerBtn');
+  const mobileMenu = document.getElementById('mobileMenu');
+  if (hamburger && mobileMenu) {
+    hamburger.addEventListener('click', () => {
+      mobileMenu.classList.toggle('is-open');
+      hamburger.textContent = mobileMenu.classList.contains('is-open') ? 'Close' : 'Menu';
+    });
+    mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+      mobileMenu.classList.remove('is-open');
+      hamburger.textContent = 'Menu';
+    }));
+  }
+
+  // ---------- Toast ----------
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('is-visible');
+    setTimeout(() => t.classList.remove('is-visible'), 2800);
+  }
+  window.showToast = showToast;
+
+  // ---------- Checkout / Order Modal ----------
+  const modal = document.getElementById('orderModal');
+  const modalScrim = document.getElementById('modalScrim');
+  const modalClose = document.getElementById('modalClose');
+  const placeOrderBtn = document.getElementById('placeOrderBtn');
+  const confirmBtn = document.getElementById('confirmOrderBtn');
+  const orderFormWrap = document.getElementById('orderFormWrap');
+
+  function openModal() {
+    if (!cart.items.length) { showToast('Add items to your order first'); return; }
+    const container = document.getElementById('modalCartItems');
+    if (container) {
+      container.innerHTML = cart.items.map(it => `
+        <div style="display:flex; justify-content:space-between; padding: 8px 0; border-bottom: 1px solid var(--color-line); font-size:14px;">
+          <span style="color:var(--color-ivory-dim);">${escapeHtml(it.name)}</span>
+          <span style="font-family:var(--font-serif);">$${it.price.toFixed(2)}</span>
+        </div>
+      `).join('');
+    }
+    const total = cart.total();
+    const modalTotal = document.getElementById('modalTotal');
+    if (modalTotal) {
+      modalTotal.textContent = `$${total.toFixed(2)}`;
+    }
+
+    // Dynamic button label updates
+    updateConfirmButtonLabel();
+
+    if (modal) modal.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    if (modal) modal.classList.remove('is-open');
+    document.body.style.overflow = '';
+  }
+
+  if (placeOrderBtn) placeOrderBtn.addEventListener('click', openModal);
+  if (modalClose) modalClose.addEventListener('click', closeModal);
+  if (modalScrim) modalScrim.addEventListener('click', closeModal);
+
+  // Radio button logic for Order Type (Pickup vs Delivery)
+  const orderTypeGroupLabels = $$('#orderTypeGroup .order-form__radio');
+  orderTypeGroupLabels.forEach(label => {
+    label.addEventListener('click', () => {
+      orderTypeGroupLabels.forEach(l => l.classList.remove('selected'));
+      label.classList.add('selected');
+      const radioInput = label.querySelector('input');
+      if (radioInput) radioInput.checked = true;
+      const type = label.dataset.type;
+      
+      const deliverySection = document.getElementById('deliverySection');
+      if (deliverySection) {
+        deliverySection.style.display = type === 'delivery' ? 'block' : 'none';
+      }
+
+      // Update summary total to include delivery fee if delivery is chosen
+      const total = cart.total() + (type === 'delivery' ? 4 : 0);
+      const modalTotal = document.getElementById('modalTotal');
+      if (modalTotal) modalTotal.textContent = `$${total.toFixed(2)}`;
+
+      updateConfirmButtonLabel();
+    });
+  });
+
+  // Radio button logic for Payment Method (Cash vs Card)
+  const payGroupLabels = $$('#payGroup .order-form__radio');
+  payGroupLabels.forEach(label => {
+    label.addEventListener('click', () => {
+      payGroupLabels.forEach(l => l.classList.remove('selected'));
+      label.classList.add('selected');
+      const radioInput = label.querySelector('input');
+      if (radioInput) radioInput.checked = true;
+
+      updateConfirmButtonLabel();
+    });
+  });
+
+  function updateConfirmButtonLabel() {
+    if (!confirmBtn) return;
+    const selectedPayLabel = $('#payGroup .order-form__radio.selected');
+    const payMethod = selectedPayLabel ? selectedPayLabel.dataset.pay : 'cash';
+    const selectedTypeLabel = $('#orderTypeGroup .order-form__radio.selected');
+    const orderType = selectedTypeLabel ? selectedTypeLabel.dataset.type : 'pickup';
+    const total = cart.total() + (orderType === 'delivery' ? 4 : 0);
+
+    if (payMethod === 'card') {
+      confirmBtn.textContent = `Pay Now $${total.toFixed(2)}`;
+    } else {
+      confirmBtn.textContent = `Place Cash Order $${total.toFixed(2)}`;
+    }
+  }
+
+  // Submission Flow
+  if (confirmBtn) {
+    confirmBtn.addEventListener('click', async () => {
+      const fnameInput = document.getElementById('fName');
+      const lnameInput = document.getElementById('lName');
+      const phoneInput = document.getElementById('phone');
+
+      const fname = fnameInput ? fnameInput.value.trim() : '';
+      const lname = lnameInput ? lnameInput.value.trim() : '';
+      const phone = phoneInput ? phoneInput.value.trim() : '';
+
+      if (!fname || !phone) { showToast('Please fill in your name and phone number'); return; }
+
+      const selectedTypeLabel = $('#orderTypeGroup .order-form__radio.selected');
+      const orderType = selectedTypeLabel ? selectedTypeLabel.dataset.type : 'pickup';
+
+      let deliveryAddress = '';
+      if (orderType === 'delivery') {
+        const addrInput = document.getElementById('addr');
+        const aptInput = document.getElementById('apt');
+        const zipInput = document.getElementById('zip');
+
+        const addr = addrInput ? addrInput.value.trim() : '';
+        const apt = aptInput ? aptInput.value.trim() : '';
+        const zip = zipInput ? zipInput.value.trim() : '';
+
+        if (!addr || !zip) { showToast('Please enter your street address and zip code'); return; }
+        deliveryAddress = `${addr}${apt ? ', ' + apt : ''}, Zip: ${zip}`;
+      }
+
+      const selectedPayLabel = $('#payGroup .order-form__radio.selected');
+      const paymentMethod = selectedPayLabel ? selectedPayLabel.dataset.pay : 'cash';
+
+      const originalBtnText = confirmBtn.textContent;
+      confirmBtn.disabled = true;
+      confirmBtn.style.opacity = '0.6';
+      confirmBtn.textContent = paymentMethod === 'card' ? 'Redirecting to Stripe...' : 'Submitting Order...';
+
+      const payload = {
+        items: cart.items,
+        customer: { firstName: fname, lastName: lname, phone: phone },
+        orderType,
+        deliveryAddress
+      };
+
+      try {
+        if (paymentMethod === 'card') {
+          // Stripe checkout session
+          const res = await fetch('/api/create-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (data.ok && data.url) {
+            window.location.href = data.url;
+          } else {
+            throw new Error(data.error || 'Failed to create checkout session');
+          }
+        } else {
+          // Cash order placement
+          const res = await fetch('/api/orders/place', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...payload, paymentMethod: 'cash' })
+          });
+          const data = await res.json();
+          if (data.ok && data.orderId) {
+            closeModal();
+            window.location.href = `checkout-success.html?order_id=${encodeURIComponent(data.orderId)}`;
+          } else {
+            throw new Error(data.error || 'Failed to place cash order');
+          }
+        }
+      } catch (err) {
+        showToast(err.message || 'An error occurred. Please try again.');
+        confirmBtn.disabled = false;
+        confirmBtn.style.opacity = '1';
+        confirmBtn.textContent = originalBtnText;
+      }
+    });
+  }
+
   // Initial cart render on every page
   cart.load();
   cart.render();
