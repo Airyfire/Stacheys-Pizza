@@ -1,26 +1,36 @@
 /* Stachey's Pizza — global interactions, cart, menu filtering, customizer.
-   Upgraded: real images on menu cards, emoji toppings on customizer, full order flow. */
+   Upgraded: real images on menu cards, color-dot toppings on customizer, full order flow. */
 
 (function () {
   'use strict';
 
   // Menu data is now loaded dynamically from site-data.json
 
-  // Emoji map for customizer toppings
-  const TOPPING_EMOJIS = {
-    'Tomato':          '🍅',
-    'White Cream':     '🤍',
-    'Fresh Mozzarella':'🧀',
-    'Pecorino':        '🧄',
-    'Burrata':         '🫙',
-    'Soppressata':     '+',
-    'Prosciutto':      '🍖',
-    "N'duja":          '🌶️',
-    'Basil':           '🌿',
-    'Arugula':         '🥗',
-    'Roasted Garlic':  '🧄',
-    'Calabrian Chili': '🌶️',
+  // Color map for customizer toppings — CSS colors, universally supported on all devices
+  const TOPPING_COLORS = {
+    'Tomato':             '#c0392b',
+    'White Cream':        '#e8dfc8',
+    'Shredded Mozzarella':'#f0e6c8',
+    'Fresh Mozzarella':   '#f5f0e0',
+    'Pecorino Romano':    '#d4bc7a',
+    'Burrata':            '#f2e8d0',
+    'Pepperoni':          '#b03020',
+    'Italian Sausage':    '#8b6240',
+    'Soppressata':        '#943030',
+    'Prosciutto':         '#c47060',
+    "N'duja":             '#cc4422',
+    'Mushrooms':          '#8b7355',
+    'Green Peppers':      '#4a7c44',
+    'Red Onion':          '#7c3060',
+    'Black Olives':       '#3a3a3a',
+    'Cherry Tomatoes':    '#d44040',
+    'Spinach':            '#3a6640',
+    'Roasted Garlic':     '#c8a84b',
+    'Calabrian Chili':    '#e04422',
+    'Basil':              '#2e7d44',
+    'Arugula':            '#5a8a3a',
   };
+  const TOPPING_DEFAULT_COLOR = '#7a9a6e';
 
   const $ = (sel, ctx = document) => ctx.querySelector(sel);
   const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
@@ -163,7 +173,7 @@
     });
   }
 
-  // ---------- Customizer with EMOJI toppings ----------
+  // ---------- Customizer with CSS color-dot toppings ----------
   function initializeCustomizer(data) {
     const crust = $('[data-crust]');
     if (!crust) return;
@@ -172,7 +182,7 @@
     const baseToggles = $$('.topping-toggle[data-base="true"]');
     const extraToggles = $$('.topping-toggle:not([data-base="true"])');
 
-    let base = { name: 'Tomato', price: 0, emoji: '🍅' };
+    let base = { name: 'Tomato', price: 0, color: '#c0392b' };
     const extras = new Map();
 
     function paintBase() {
@@ -183,9 +193,8 @@
         : 'radial-gradient(circle at 40% 35%, #c4604a, #8a3220 60%, #5a1e0e 100%)';
     }
 
-    // Precomputed stable emoji positions per topping slot
-    // Uses golden angle distribution for natural scatter
-    function getEmojiPositions(slotIndex, count) {
+    // Stable dot positions using golden angle distribution for natural scatter
+    function getDotPositions(slotIndex, count) {
       const positions = [];
       const goldenAngle = 137.508 * (Math.PI / 180);
       const baseRadius = 18;
@@ -201,18 +210,18 @@
     }
 
     function paintExtras() {
-      // Remove old emoji nodes
-      crust.querySelectorAll('.topping-emoji').forEach(d => d.remove());
+      // Remove old topping dots
+      crust.querySelectorAll('.topping-dot-css').forEach(d => d.remove());
 
       let slotIdx = 0;
       extras.forEach((meta, name) => {
-        const emoji = meta.emoji;
+        const color = meta.color;
         const count = 6 + (slotIdx % 3);
-        const positions = getEmojiPositions(slotIdx, count);
+        const positions = getDotPositions(slotIdx, count);
         positions.forEach((pos, k) => {
           const el = document.createElement('span');
-          el.className = 'topping-emoji';
-          el.textContent = emoji;
+          el.className = 'topping-dot-css';
+          el.style.background = color;
           el.style.left = `${Math.max(10, Math.min(90, pos.x))}%`;
           el.style.top  = `${Math.max(10, Math.min(90, pos.y))}%`;
           el.style.transitionDelay = `${k * 28}ms`;
@@ -232,7 +241,7 @@
         base = {
           name: btn.dataset.name,
           price: parseFloat(btn.dataset.price),
-          emoji: btn.dataset.emoji || '🍅'
+          color: btn.dataset.color || TOPPING_COLORS[btn.dataset.name] || TOPPING_DEFAULT_COLOR
         };
         paintBase();
         updateTotal();
@@ -252,7 +261,7 @@
           }
           extras.set(name, {
             price: parseFloat(btn.dataset.price),
-            emoji: btn.dataset.emoji || TOPPING_EMOJIS[name] || '🔸'
+            color: btn.dataset.color || TOPPING_COLORS[name] || TOPPING_DEFAULT_COLOR
           });
           btn.classList.add('is-on');
         }
@@ -427,13 +436,16 @@
           <div class="accordion__item">
             <button class="accordion__head">${escapeHtml(cat.name)}</button>
             <div class="accordion__body" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 12px; padding: 16px;">
-              ${cat.toppings.map(topping => `
-                <button class="topping-toggle ${topping.isBase ? 'is-on' : ''}" data-base="${topping.isBase ? 'true' : 'false'}" data-name="${escapeHtml(topping.name)}" data-price="${topping.price}" data-emoji="${escapeHtml(topping.emoji)}" style="padding: 12px; border: 1px solid var(--color-line); background: transparent; color: var(--color-ivory); cursor: pointer; font-size: 14px; transition: all 0.2s;">
-                  <div>${escapeHtml(topping.emoji)}</div>
-                  <div style="font-size: 11px; margin-top: 4px;">${escapeHtml(topping.name)}</div>
+              ${cat.toppings.map(topping => {
+                const dotColor = TOPPING_COLORS[topping.name] || TOPPING_DEFAULT_COLOR;
+                return `
+                <button class="topping-toggle ${topping.isBase ? 'is-on' : ''}" data-base="${topping.isBase ? 'true' : 'false'}" data-name="${escapeHtml(topping.name)}" data-price="${topping.price}" data-color="${escapeHtml(dotColor)}" style="padding: 12px; border: 1px solid var(--color-line); background: transparent; color: var(--color-ivory); cursor: pointer; font-size: 14px; transition: all 0.2s;">
+                  <div style="width: 22px; height: 22px; border-radius: 50%; background: ${escapeHtml(dotColor)}; margin: 0 auto 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);"></div>
+                  <div style="font-size: 11px;">${escapeHtml(topping.name)}</div>
                   ${topping.price > 0 ? `<div style="font-size: 10px; color: var(--color-accent);">+$${topping.price}</div>` : ''}
                 </button>
-              `).join('')}
+                `;
+              }).join('')}
             </div>
           </div>
         `).join('');
