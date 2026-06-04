@@ -8,10 +8,10 @@
 */
 (function () {
   'use strict';
- 
+
   let siteData = null;
-  let dirty    = false;
- 
+  let dirty = false;
+
   // ── Bootstrap ──────────────────────────────────────────────
   function waitForData(tries) {
     tries = tries || 0;
@@ -24,7 +24,7 @@
       });
   }
   waitForData();
- 
+
   // ── Init ───────────────────────────────────────────────────
   function init() {
     injectStyles();
@@ -36,7 +36,7 @@
     renderCustomizerEditor();
     renderFooterEditor();
     renderCustomPageViews();
-    
+
     // Live orders polling
     setInterval(refreshOrdersBoard, 10000);
     refreshOrdersBoard();
@@ -44,7 +44,7 @@
     document.addEventListener('input', () => { dirty = true; markDirty(); });
     window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
   }
- 
+
   // ── Styles ─────────────────────────────────────────────────
   function injectStyles() {
     const s = document.createElement('style');
@@ -222,7 +222,7 @@
     `;
     document.head.appendChild(s);
   }
- 
+
   // ── Publish Bar ────────────────────────────────────────────
   function buildPublishBar() {
     const bar = document.createElement('div');
@@ -245,39 +245,46 @@
     const s = document.getElementById('publishStatus');
     if (s) { s.textContent = 'All changes saved'; s.classList.remove('is-dirty'); }
   }
- 
+
   // ── Tab Bar ────────────────────────────────────────────
   let _tabsDelegated = false;
   function buildTabs() {
     const c = document.getElementById('adminTabs');
     if (!c) return;
- 
+
     // Preserve the currently active view across rebuilds
     const curActive = c.querySelector('.admin-tab.active');
     const activeView = curActive ? curActive.dataset.view : 'orders';
- 
+
     const builtins = [
-      { id:'orders', label:'Orders 📋' },
-      { id:'home', label:'Home' }, { id:'story', label:'Story' },
-      { id:'menu', label:'Menu' }, { id:'customize', label:'Customizer' },
-      { id:'footer', label:'Footer' }
+      { id: 'orders', label: 'Orders 📋' },
+      { id: 'home', label: 'Home' }, { id: 'story', label: 'Story' },
+      { id: 'menu', label: 'Menu' }, { id: 'customize', label: 'Customizer' },
+      { id: 'footer', label: 'Footer' }
     ];
     let html = builtins.map(t => {
       const active = t.id === activeView ? ' active' : '';
       return '<button class="admin-tab' + active + '" data-view="' + t.id + '">' + t.label + '</button>';
     }).join('');
-    (siteData.customPages||[]).forEach(p => {
+    (siteData.customPages || []).forEach(p => {
       const active = ('custom-' + p.id) === activeView ? ' active' : '';
       html += '<button class="admin-tab' + active + '" data-view="custom-' + p.id + '">' + esc(p.title) + '</button>';
     });
     html += '<button class="admin-tab admin-tab--add" data-add-page="1">＋ Add Page</button>';
+    html += '<button class="admin-tab admin-tab--logout" style="margin-left: auto; border-color: #c44; color: #c44; opacity: 0.85;">Logout ✕</button>';
     c.innerHTML = html;
- 
+
     // Re-attach view-switch clicks on freshly created buttons
     c.querySelectorAll('.admin-tab[data-view]').forEach(b =>
       b.addEventListener('click', () => switchView(b.dataset.view, b))
     );
- 
+
+    // Logout button handler
+    const logoutBtn = c.querySelector('.admin-tab--logout');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', handleLogout);
+    }
+
     // Delegate the add-page click on the stable container — only wire once ever
     if (!_tabsDelegated) {
       _tabsDelegated = true;
@@ -285,6 +292,17 @@
         if (e.target.closest('[data-add-page]')) addNewPage();
       });
     }
+  }
+
+  function handleLogout() {
+    if (!confirm('Are you sure you want to log out?')) return;
+    fetch('/api/logout', { method: 'POST' })
+      .then(() => {
+        window.location.href = '/login.html';
+      })
+      .catch(() => {
+        window.location.href = '/login.html';
+      });
   }
   function switchView(id, btn) {
     document.querySelectorAll('.admin-view').forEach(el => el.classList.remove('active'));
@@ -296,68 +314,68 @@
       refreshOrdersBoard();
     }
   }
- 
+
   // ── Home ───────────────────────────────────────────────────
   function populateHome() {
     const titleEl = document.querySelector('[data-edit-target="heroTitle"]');
-    if (titleEl) { titleEl.innerHTML = siteData.heroTitle||''; makeEditable(titleEl); }
+    if (titleEl) { titleEl.innerHTML = siteData.heroTitle || ''; makeEditable(titleEl); }
     const leadEl = document.querySelector('[data-edit-target="heroLead"]');
-    if (leadEl)  { leadEl.textContent = siteData.heroLead||''; makeEditable(leadEl); }
+    if (leadEl) { leadEl.textContent = siteData.heroLead || ''; makeEditable(leadEl); }
     const metaEl = document.querySelector('[data-edit-target="heroMeta"]');
     if (metaEl && siteData.heroMeta) {
-      metaEl.innerHTML = siteData.heroMeta.map(m=>`<div>${esc(m)}</div>`).join('');
+      metaEl.innerHTML = siteData.heroMeta.map(m => `<div>${esc(m)}</div>`).join('');
       Array.from(metaEl.children).forEach(c => makeEditable(c));
     }
     const metricsEl = document.querySelector('[data-edit-target="metricsGrid"]');
     if (metricsEl && siteData.metrics) {
-      metricsEl.innerHTML = siteData.metrics.map(m=>`
+      metricsEl.innerHTML = siteData.metrics.map(m => `
         <div>
           <div class="metric__value">
-            <span contenteditable="true">${m.value}</span>${m.suffix?`<span style="opacity:.5">${esc(m.suffix)}</span>`:''}
+            <span contenteditable="true">${m.value}</span>${m.suffix ? `<span style="opacity:.5">${esc(m.suffix)}</span>` : ''}
           </div>
           <div class="metric__label" contenteditable="true">${esc(m.label)}</div>
         </div>`).join('');
     }
   }
- 
+
   // ── Story ──────────────────────────────────────────────────
   function populateStory() {
     const ss = document.querySelector('[data-edit-target="storySection"]');
     if (ss && siteData.storySection) {
       const d = siteData.storySection;
-      const idx=ss.querySelector('.story__index'), hdg=ss.querySelector('.story__heading'), cpy=ss.querySelector('.story__copy');
-      if (idx){idx.textContent=d.eyebrow||''; makeEditable(idx);}
-      if (hdg){hdg.innerHTML=d.heading||'';    makeEditable(hdg);}
-      if (cpy){cpy.textContent=d.copy||'';     makeEditable(cpy);}
+      const idx = ss.querySelector('.story__index'), hdg = ss.querySelector('.story__heading'), cpy = ss.querySelector('.story__copy');
+      if (idx) { idx.textContent = d.eyebrow || ''; makeEditable(idx); }
+      if (hdg) { hdg.innerHTML = d.heading || ''; makeEditable(hdg); }
+      if (cpy) { cpy.textContent = d.copy || ''; makeEditable(cpy); }
     }
     const ps = document.querySelector('[data-edit-target="promiseSection"]');
     if (ps && siteData.promiseSection) {
       const d = siteData.promiseSection;
-      const idx=ps.querySelector('.story__index'), hdg=ps.querySelector('.story__heading'), cpy=ps.querySelector('.story__copy');
-      if (idx){idx.textContent=d.eyebrow||''; makeEditable(idx);}
-      if (hdg){hdg.innerHTML=d.heading||'';    makeEditable(hdg);}
-      if (cpy){cpy.textContent=d.copy||'';     makeEditable(cpy);}
-      const img=ps.querySelector('img[data-edit-target="promiseImage"]');
-      if (img){img.src=d.image||''; makeImageEditable(img, v=>{siteData.promiseSection.image=v;});}
+      const idx = ps.querySelector('.story__index'), hdg = ps.querySelector('.story__heading'), cpy = ps.querySelector('.story__copy');
+      if (idx) { idx.textContent = d.eyebrow || ''; makeEditable(idx); }
+      if (hdg) { hdg.innerHTML = d.heading || ''; makeEditable(hdg); }
+      if (cpy) { cpy.textContent = d.copy || ''; makeEditable(cpy); }
+      const img = ps.querySelector('img[data-edit-target="promiseImage"]');
+      if (img) { img.src = d.image || ''; makeImageEditable(img, v => { siteData.promiseSection.image = v; }); }
     }
-    const addrEl=document.querySelector('[data-edit-target="visitAddress"]');
+    const addrEl = document.querySelector('[data-edit-target="visitAddress"]');
     if (addrEl) {
-      addrEl.innerHTML=`${esc(siteData.visitAddress||'')},<br/><em>${esc(siteData.visitCity||'')}</em>`;
+      addrEl.innerHTML = `${esc(siteData.visitAddress || '')},<br/><em>${esc(siteData.visitCity || '')}</em>`;
       makeEditable(addrEl);
     }
-    const copyEl=document.querySelector('[data-edit-target="visitCopy"]');
-    if (copyEl){copyEl.textContent=siteData.visitCopy||''; makeEditable(copyEl);}
-    const vi=document.querySelector('[data-edit-target="visitImage"]');
-    if (vi && siteData.visitSection){vi.src=siteData.visitSection.image||''; makeImageEditable(vi, v=>{siteData.visitSection.image=v;});}
+    const copyEl = document.querySelector('[data-edit-target="visitCopy"]');
+    if (copyEl) { copyEl.textContent = siteData.visitCopy || ''; makeEditable(copyEl); }
+    const vi = document.querySelector('[data-edit-target="visitImage"]');
+    if (vi && siteData.visitSection) { vi.src = siteData.visitSection.image || ''; makeImageEditable(vi, v => { siteData.visitSection.image = v; }); }
   }
- 
+
   // ════════════════════════════════════════════════════════════
   //  MENU EDITOR  — full CRUD, not the customer-facing grid
   // ════════════════════════════════════════════════════════════
   function renderMenuEditor() {
     const view = document.getElementById('view-menu');
     if (!view) return;
- 
+
     // Replace the customer-facing shell entirely
     view.innerHTML = `
       <div class="container" style="padding:80px 0;">
@@ -379,25 +397,25 @@
         <div class="med-grid" id="medGrid"></div>
       </div>
     `;
- 
+
     // Filter buttons
     let activeFilter = 'all';
     view.querySelectorAll('.med-filter-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        view.querySelectorAll('.med-filter-btn').forEach(b=>b.classList.remove('active'));
+        view.querySelectorAll('.med-filter-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         activeFilter = btn.dataset.mf;
         renderCards();
       });
     });
- 
+
     function renderCards() {
       const grid = document.getElementById('medGrid');
       if (!grid) return;
-      const items = (siteData.menuItems||[]).filter(it => activeFilter==='all' || it.category===activeFilter);
- 
+      const items = (siteData.menuItems || []).filter(it => activeFilter === 'all' || it.category === activeFilter);
+
       grid.innerHTML = '';
- 
+
       items.forEach(item => {
         const card = document.createElement('div');
         card.className = 'med-card';
@@ -405,7 +423,7 @@
         card.innerHTML = `
           <button class="med-card__delete" data-del="${item.id}">✕ Remove</button>
           <div class="med-card__img-wrap" data-img="${item.id}">
-            <img src="${esc(item.image||'')}" alt="${esc(item.name)}" loading="lazy"
+            <img src="${esc(item.image || '')}" alt="${esc(item.name)}" loading="lazy"
                  onerror="this.style.opacity='.3'" />
           </div>
           <div class="med-card__body">
@@ -421,127 +439,127 @@
               <div style="flex:2;">
                 <span class="med-label">Category</span>
                 <select class="med-select" data-field="category" data-id="${item.id}">
-                  <option value="red"    ${item.category==='red'   ?'selected':''}>Red Pies</option>
-                  <option value="white"  ${item.category==='white' ?'selected':''}>White Pies</option>
-                  <option value="sides"  ${item.category==='sides' ?'selected':''}>Sides</option>
-                  <option value="greens" ${item.category==='greens'?'selected':''}>Greens</option>
+                  <option value="red"    ${item.category === 'red' ? 'selected' : ''}>Red Pies</option>
+                  <option value="white"  ${item.category === 'white' ? 'selected' : ''}>White Pies</option>
+                  <option value="sides"  ${item.category === 'sides' ? 'selected' : ''}>Sides</option>
+                  <option value="greens" ${item.category === 'greens' ? 'selected' : ''}>Greens</option>
                 </select>
               </div>
             </div>
             <div>
               <span class="med-label">Ingredients</span>
-              <input class="med-input" type="text" value="${esc(item.ingredients||'')}" data-field="ingredients" data-id="${item.id}" />
+              <input class="med-input" type="text" value="${esc(item.ingredients || '')}" data-field="ingredients" data-id="${item.id}" />
             </div>
             <div>
               <span class="med-label">Badge / Tag (optional)</span>
-              <input class="med-tag-input" type="text" value="${esc(item.tag||'')}" placeholder="e.g. Best Seller, Seasonal…" data-field="tag" data-id="${item.id}" />
+              <input class="med-tag-input" type="text" value="${esc(item.tag || '')}" placeholder="e.g. Best Seller, Seasonal…" data-field="tag" data-id="${item.id}" />
             </div>
           </div>
         `;
         grid.appendChild(card);
       });
- 
+
       // Add-new card
       const addCard = document.createElement('div');
       addCard.className = 'med-card';
       addCard.innerHTML = `<button class="med-add-btn" id="medAddBtn">＋ Add Menu Item</button>`;
       grid.appendChild(addCard);
- 
+
       // ── events ──
       // Image click
       grid.querySelectorAll('[data-img]').forEach(wrap => {
         wrap.addEventListener('click', () => {
-          const id  = wrap.dataset.img;
-          const it  = siteData.menuItems.find(i=>i.id===id);
+          const id = wrap.dataset.img;
+          const it = siteData.menuItems.find(i => i.id === id);
           if (!it) return;
-          const url = prompt('Image URL:', it.image||'');
+          const url = prompt('Image URL:', it.image || '');
           if (url !== null && url.trim()) {
             it.image = url.trim();
             wrap.querySelector('img').src = url.trim();
-            dirty=true; markDirty();
+            dirty = true; markDirty();
           }
         });
       });
- 
+
       // Input / select changes → update siteData live
       grid.querySelectorAll('[data-field][data-id]').forEach(inp => {
         inp.addEventListener('input', () => {
-          const it = siteData.menuItems.find(i=>i.id===inp.dataset.id);
+          const it = siteData.menuItems.find(i => i.id === inp.dataset.id);
           if (!it) return;
-          const val = inp.dataset.field==='price' ? (parseFloat(inp.value)||0) : inp.value;
+          const val = inp.dataset.field === 'price' ? (parseFloat(inp.value) || 0) : inp.value;
           it[inp.dataset.field] = val;
-          dirty=true; markDirty();
+          dirty = true; markDirty();
         });
         // select fires change not input
         inp.addEventListener('change', () => {
-          const it = siteData.menuItems.find(i=>i.id===inp.dataset.id);
+          const it = siteData.menuItems.find(i => i.id === inp.dataset.id);
           if (!it) return;
           it[inp.dataset.field] = inp.value;
-          dirty=true; markDirty();
+          dirty = true; markDirty();
           // Re-render if filter is active and category changed
-          if (activeFilter!=='all' && inp.dataset.field==='category') renderCards();
+          if (activeFilter !== 'all' && inp.dataset.field === 'category') renderCards();
         });
       });
- 
+
       // Delete item
       grid.querySelectorAll('[data-del]').forEach(btn => {
         btn.addEventListener('click', () => {
           const id = btn.dataset.del;
-          const it = siteData.menuItems.find(i=>i.id===id);
+          const it = siteData.menuItems.find(i => i.id === id);
           if (!it) return;
           if (!confirm(`Remove "${it.name}" from the menu?`)) return;
-          siteData.menuItems = siteData.menuItems.filter(i=>i.id!==id);
-          dirty=true; markDirty();
+          siteData.menuItems = siteData.menuItems.filter(i => i.id !== id);
+          dirty = true; markDirty();
           renderCards();
           if (window.showToast) window.showToast(`"${it.name}" removed — Publish to save.`);
         });
       });
- 
+
       // Add new item
       const addBtn = document.getElementById('medAddBtn');
       if (addBtn) {
         addBtn.addEventListener('click', () => {
           const name = prompt('New item name:');
-          if (!name||!name.trim()) return;
+          if (!name || !name.trim()) return;
           const newItem = {
-            id:          'item_' + Date.now(),
-            name:        name.trim(),
-            category:    activeFilter==='all' ? 'red' : activeFilter,
-            price:       14,
+            id: 'item_' + Date.now(),
+            name: name.trim(),
+            category: activeFilter === 'all' ? 'red' : activeFilter,
+            price: 14,
             ingredients: '',
-            tag:         '',
-            image:       'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=600&q=80&auto=format&fit=crop'
+            tag: '',
+            image: 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=600&q=80&auto=format&fit=crop'
           };
-          siteData.menuItems = siteData.menuItems||[];
+          siteData.menuItems = siteData.menuItems || [];
           siteData.menuItems.push(newItem);
-          dirty=true; markDirty();
+          dirty = true; markDirty();
           renderCards();
           if (window.showToast) window.showToast(`"${newItem.name}" added — fill in the details then Publish.`);
         });
       }
     }
- 
+
     renderCards();
   }
- 
+
   // ════════════════════════════════════════════════════════════
   //  CUSTOMIZER EDITOR
   // ════════════════════════════════════════════════════════════
   function renderCustomizerEditor() {
-    const container   = document.getElementById('customizerEditor');
+    const container = document.getElementById('customizerEditor');
     const basePriceEl = document.getElementById('customizerBasePrice');
     if (!container) return;
     if (basePriceEl) {
-      basePriceEl.value = siteData.customizerBasePrice||16;
-      basePriceEl.addEventListener('input', ()=>{
-        siteData.customizerBasePrice=parseFloat(basePriceEl.value)||16;
-        dirty=true; markDirty();
+      basePriceEl.value = siteData.customizerBasePrice || 16;
+      basePriceEl.addEventListener('input', () => {
+        siteData.customizerBasePrice = parseFloat(basePriceEl.value) || 16;
+        dirty = true; markDirty();
       });
     }
     function render() {
-      let html='';
-      (siteData.customizerCategories||[]).forEach((cat,ci)=>{
-        html+=`
+      let html = '';
+      (siteData.customizerCategories || []).forEach((cat, ci) => {
+        html += `
           <div class="category-header">
             <h3 contenteditable="true" data-cat-idx="${ci}"
                 style="font-family:var(--font-serif);font-size:22px;outline:1px dashed rgba(90,122,82,.4);outline-offset:4px;padding:2px 6px;cursor:text;">${esc(cat.name)}</h3>
@@ -552,8 +570,8 @@
           </div>
           <div style="margin-bottom:8px;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--color-ivory-muted);">Name · Price</div>
         `;
-        cat.toppings.forEach((top,ti)=>{
-          html+=`
+        cat.toppings.forEach((top, ti) => {
+          html += `
             <div class="topping-editor-row" data-ci="${ci}" data-ti="${ti}">
               <input type="text"   value="${esc(top.name)}"  data-field="name"  placeholder="Topping name" />
               <input type="number" value="${top.price}"       data-field="price" step="0.5" min="0" style="text-align:right;" />
@@ -562,68 +580,68 @@
             </div>`;
         });
       });
-      container.innerHTML=html;
+      container.innerHTML = html;
       attachCustEvents();
     }
     function attachCustEvents() {
-      container.querySelectorAll('[data-cat-idx]').forEach(el=>{
-        el.addEventListener('blur',()=>{
-          const ci=parseInt(el.dataset.catIdx);
-          if(siteData.customizerCategories[ci]) siteData.customizerCategories[ci].name=el.textContent.trim();
-          dirty=true; markDirty();
+      container.querySelectorAll('[data-cat-idx]').forEach(el => {
+        el.addEventListener('blur', () => {
+          const ci = parseInt(el.dataset.catIdx);
+          if (siteData.customizerCategories[ci]) siteData.customizerCategories[ci].name = el.textContent.trim();
+          dirty = true; markDirty();
         });
       });
-      container.querySelectorAll('.topping-editor-row').forEach(row=>{
-        const ci=parseInt(row.dataset.ci), ti=parseInt(row.dataset.ti);
-        row.querySelectorAll('input:not([disabled])').forEach(inp=>{
-          inp.addEventListener('input',()=>{
-            const val=inp.dataset.field==='price'?(parseFloat(inp.value)||0):inp.value;
-            siteData.customizerCategories[ci].toppings[ti][inp.dataset.field]=val;
-            dirty=true; markDirty();
+      container.querySelectorAll('.topping-editor-row').forEach(row => {
+        const ci = parseInt(row.dataset.ci), ti = parseInt(row.dataset.ti);
+        row.querySelectorAll('input:not([disabled])').forEach(inp => {
+          inp.addEventListener('input', () => {
+            const val = inp.dataset.field === 'price' ? (parseFloat(inp.value) || 0) : inp.value;
+            siteData.customizerCategories[ci].toppings[ti][inp.dataset.field] = val;
+            dirty = true; markDirty();
           });
         });
       });
-      container.querySelectorAll('[data-del-top]').forEach(btn=>{
-        btn.addEventListener('click',()=>{
-          const [ci,ti]=btn.dataset.delTop.split('-').map(Number);
-          siteData.customizerCategories[ci].toppings.splice(ti,1);
-          dirty=true; markDirty(); render();
+      container.querySelectorAll('[data-del-top]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const [ci, ti] = btn.dataset.delTop.split('-').map(Number);
+          siteData.customizerCategories[ci].toppings.splice(ti, 1);
+          dirty = true; markDirty(); render();
         });
       });
-      container.querySelectorAll('[data-del-cat]').forEach(btn=>{
-        btn.addEventListener('click',()=>{
-          if(!confirm('Delete this category?')) return;
-          siteData.customizerCategories.splice(parseInt(btn.dataset.delCat),1);
-          dirty=true; markDirty(); render();
+      container.querySelectorAll('[data-del-cat]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (!confirm('Delete this category?')) return;
+          siteData.customizerCategories.splice(parseInt(btn.dataset.delCat), 1);
+          dirty = true; markDirty(); render();
         });
       });
-      container.querySelectorAll('[data-add-top]').forEach(btn=>{
-        btn.addEventListener('click',()=>{
-          siteData.customizerCategories[parseInt(btn.dataset.addTop)].toppings.push({name:'New Topping',price:2});
-          dirty=true; markDirty(); render();
+      container.querySelectorAll('[data-add-top]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          siteData.customizerCategories[parseInt(btn.dataset.addTop)].toppings.push({ name: 'New Topping', price: 2 });
+          dirty = true; markDirty(); render();
         });
       });
     }
-    const acb=document.getElementById('addCategoryBtn');
-    if(acb){
-      const fresh=acb.cloneNode(true); acb.parentNode.replaceChild(fresh,acb);
-      fresh.addEventListener('click',()=>{
-        const name=prompt('Category name:'); if(!name||!name.trim()) return;
-        siteData.customizerCategories=siteData.customizerCategories||[];
-        siteData.customizerCategories.push({id:'cat_'+Date.now(),name:name.trim(),toppings:[]});
-        dirty=true; markDirty(); render();
+    const acb = document.getElementById('addCategoryBtn');
+    if (acb) {
+      const fresh = acb.cloneNode(true); acb.parentNode.replaceChild(fresh, acb);
+      fresh.addEventListener('click', () => {
+        const name = prompt('Category name:'); if (!name || !name.trim()) return;
+        siteData.customizerCategories = siteData.customizerCategories || [];
+        siteData.customizerCategories.push({ id: 'cat_' + Date.now(), name: name.trim(), toppings: [] });
+        dirty = true; markDirty(); render();
       });
     }
     render();
   }
- 
+
   // ════════════════════════════════════════════════════════════
   //  FOOTER EDITOR  — two locations + social + email + legal
   // ════════════════════════════════════════════════════════════
   function renderFooterEditor() {
     const view = document.getElementById('view-footer');
     if (!view) return;
- 
+
     view.innerHTML = `
       <div class="container" style="padding:80px 0;">
         <div class="admin-section-label">Footer Editor</div>
@@ -637,15 +655,15 @@
             <div class="fed-card__title">Brand</div>
             <div class="fed-field">
               <span class="fed-label">Brand Name</span>
-              <input class="fed-input" type="text" id="fedBrand" value="${esc(siteData.footer.brand||'')}" />
+              <input class="fed-input" type="text" id="fedBrand" value="${esc(siteData.footer.brand || '')}" />
             </div>
             <div class="fed-field">
               <span class="fed-label">Tagline</span>
-              <input class="fed-input" type="text" id="fedTagline" value="${esc(siteData.footer.tagline||'')}" placeholder="Short tagline under brand name" />
+              <input class="fed-input" type="text" id="fedTagline" value="${esc(siteData.footer.tagline || '')}" placeholder="Short tagline under brand name" />
             </div>
             <div class="fed-field">
               <span class="fed-label">Legal / Copyright</span>
-              <input class="fed-input" type="text" id="fedLegal" value="${esc(siteData.footer.legal||'')}" />
+              <input class="fed-input" type="text" id="fedLegal" value="${esc(siteData.footer.legal || '')}" />
             </div>
           </div>
  
@@ -654,19 +672,19 @@
             <div class="fed-card__title">Contact</div>
             <div class="fed-field">
               <span class="fed-label">Email</span>
-              <input class="fed-input" type="email" id="fedEmail" value="${esc(siteData.footer.email||'')}" placeholder="hello@stacheys.com" />
+              <input class="fed-input" type="email" id="fedEmail" value="${esc(siteData.footer.email || '')}" placeholder="hello@stacheys.com" />
             </div>
             <div class="fed-field" style="margin-top:24px;padding-top:24px;border-top:1px solid var(--color-line);">
               <span class="fed-label">Social — Instagram URL</span>
-              <input class="fed-input" type="url" id="fedInsta" value="${esc((siteData.footer.social&&siteData.footer.social.instagram)||'')}" placeholder="https://instagram.com/…" />
+              <input class="fed-input" type="url" id="fedInsta" value="${esc((siteData.footer.social && siteData.footer.social.instagram) || '')}" placeholder="https://instagram.com/…" />
             </div>
             <div class="fed-field">
               <span class="fed-label">Social — Facebook URL</span>
-              <input class="fed-input" type="url" id="fedFb" value="${esc((siteData.footer.social&&siteData.footer.social.facebook)||'')}" placeholder="https://facebook.com/…" />
+              <input class="fed-input" type="url" id="fedFb" value="${esc((siteData.footer.social && siteData.footer.social.facebook) || '')}" placeholder="https://facebook.com/…" />
             </div>
             <div class="fed-field">
               <span class="fed-label">Social — Yelp URL</span>
-              <input class="fed-input" type="url" id="fedYelp" value="${esc((siteData.footer.social&&siteData.footer.social.yelp)||'')}" placeholder="https://yelp.com/biz/…" />
+              <input class="fed-input" type="url" id="fedYelp" value="${esc((siteData.footer.social && siteData.footer.social.yelp) || '')}" placeholder="https://yelp.com/biz/…" />
             </div>
           </div>
  
@@ -681,74 +699,74 @@
         </div>
       </div>
     `;
- 
+
     function renderLocations() {
       const container = document.getElementById('fedLocations');
       if (!container) return;
-      const locs = siteData.footer.locations||[];
-      container.innerHTML = locs.map((loc,i) => `
+      const locs = siteData.footer.locations || [];
+      container.innerHTML = locs.map((loc, i) => `
         <div class="fed-loc-card" data-loc-idx="${i}">
-          <div class="fed-loc-title">Location ${i+1}</div>
+          <div class="fed-loc-title">Location ${i + 1}</div>
           <button class="fed-del-loc" data-del-loc="${i}">✕ Remove</button>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
             <div class="fed-field">
               <span class="fed-label">Label (e.g. North Andover)</span>
-              <input class="fed-input" type="text" value="${esc(loc.label||'')}" data-loc="${i}" data-lf="label" />
+              <input class="fed-input" type="text" value="${esc(loc.label || '')}" data-loc="${i}" data-lf="label" />
             </div>
             <div class="fed-field">
               <span class="fed-label">Phone</span>
-              <input class="fed-input" type="tel" value="${esc(loc.phone||'')}" data-loc="${i}" data-lf="phone" />
+              <input class="fed-input" type="tel" value="${esc(loc.phone || '')}" data-loc="${i}" data-lf="phone" />
             </div>
             <div class="fed-field">
               <span class="fed-label">Street Address</span>
-              <input class="fed-input" type="text" value="${esc(loc.address||'')}" data-loc="${i}" data-lf="address" />
+              <input class="fed-input" type="text" value="${esc(loc.address || '')}" data-loc="${i}" data-lf="address" />
             </div>
             <div class="fed-field">
               <span class="fed-label">City / State / Zip</span>
-              <input class="fed-input" type="text" value="${esc(loc.city||'')}" data-loc="${i}" data-lf="city" />
+              <input class="fed-input" type="text" value="${esc(loc.city || '')}" data-loc="${i}" data-lf="city" />
             </div>
             <div class="fed-field">
               <span class="fed-label">Hours Line 1</span>
-              <input class="fed-input" type="text" value="${esc(loc.hours||'')}" placeholder="Mon–Thu 11am–10pm" data-loc="${i}" data-lf="hours" />
+              <input class="fed-input" type="text" value="${esc(loc.hours || '')}" placeholder="Mon–Thu 11am–10pm" data-loc="${i}" data-lf="hours" />
             </div>
             <div class="fed-field">
               <span class="fed-label">Hours Line 2</span>
-              <input class="fed-input" type="text" value="${esc(loc.hours2||'')}" placeholder="Fri–Sun 11am–11pm" data-loc="${i}" data-lf="hours2" />
+              <input class="fed-input" type="text" value="${esc(loc.hours2 || '')}" placeholder="Fri–Sun 11am–11pm" data-loc="${i}" data-lf="hours2" />
             </div>
           </div>
         </div>
       `).join('');
- 
+
       // Location field inputs
       container.querySelectorAll('[data-loc][data-lf]').forEach(inp => {
         inp.addEventListener('input', () => {
           const i = parseInt(inp.dataset.loc);
           siteData.footer.locations[i][inp.dataset.lf] = inp.value;
-          dirty=true; markDirty();
+          dirty = true; markDirty();
         });
       });
- 
+
       // Delete location
       container.querySelectorAll('[data-del-loc]').forEach(btn => {
         btn.addEventListener('click', () => {
           if (!confirm('Remove this location?')) return;
-          siteData.footer.locations.splice(parseInt(btn.dataset.delLoc),1);
-          dirty=true; markDirty();
+          siteData.footer.locations.splice(parseInt(btn.dataset.delLoc), 1);
+          dirty = true; markDirty();
           renderLocations();
         });
       });
     }
- 
+
     renderLocations();
- 
+
     // Add location
     document.getElementById('fedAddLoc').addEventListener('click', () => {
-      siteData.footer.locations = siteData.footer.locations||[];
-      siteData.footer.locations.push({ label:'New Location', address:'', city:'', hours:'', hours2:'', phone:'' });
-      dirty=true; markDirty();
+      siteData.footer.locations = siteData.footer.locations || [];
+      siteData.footer.locations.push({ label: 'New Location', address: '', city: '', hours: '', hours2: '', phone: '' });
+      dirty = true; markDirty();
       renderLocations();
     });
- 
+
     // Top-level field listeners (brand, tagline, legal, email, social)
     const wire = (id, path) => {
       const el = document.getElementById(id);
@@ -757,58 +775,59 @@
         // path like 'footer.brand' or 'footer.social.instagram'
         const parts = path.split('.');
         let obj = siteData;
-        for (let k=0; k<parts.length-1; k++) { obj[parts[k]]=obj[parts[k]]||{}; obj=obj[parts[k]]; }
-        obj[parts[parts.length-1]] = el.value;
-        dirty=true; markDirty();
+        for (let k = 0; k < parts.length - 1; k++) { obj[parts[k]] = obj[parts[k]] || {}; obj = obj[parts[k]]; }
+        obj[parts[parts.length - 1]] = el.value;
+        dirty = true; markDirty();
       });
     };
-    wire('fedBrand',   'footer.brand');
+    wire('fedBrand', 'footer.brand');
     wire('fedTagline', 'footer.tagline');
-    wire('fedLegal',   'footer.legal');
-    wire('fedEmail',   'footer.email');
-    wire('fedInsta',   'footer.social.instagram');
-    wire('fedFb',      'footer.social.facebook');
-    wire('fedYelp',    'footer.social.yelp');
+    wire('fedLegal', 'footer.legal');
+    wire('fedEmail', 'footer.email');
+    wire('fedInsta', 'footer.social.instagram');
+    wire('fedFb', 'footer.social.facebook');
+    wire('fedYelp', 'footer.social.yelp');
   }
- 
+
   // ════════════════════════════════════════════════════════════
   //  CUSTOM PAGES
   // ════════════════════════════════════════════════════════════
   function addNewPage() {
     const title = prompt('New page name:');
-    if (!title||!title.trim()) return;
-    const id = 'page_'+Date.now();
-    siteData.customPages = siteData.customPages||[];
-    siteData.customPages.push({ id, title:title.trim(),
-      slug:title.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''),
-      sections:[{heading:'Section Title',text:'Write your content here.',image:''}]
+    if (!title || !title.trim()) return;
+    const id = 'page_' + Date.now();
+    siteData.customPages = siteData.customPages || [];
+    siteData.customPages.push({
+      id, title: title.trim(),
+      slug: title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+      sections: [{ heading: 'Section Title', text: 'Write your content here.', image: '' }]
     });
-    dirty=true; markDirty();
+    dirty = true; markDirty();
     buildTabs(); renderCustomPageViews();
-    const btn=document.querySelector(`[data-view="custom-${id}"]`);
-    if (btn) switchView('custom-'+id,btn);
+    const btn = document.querySelector(`[data-view="custom-${id}"]`);
+    if (btn) switchView('custom-' + id, btn);
     if (window.showToast) window.showToast(`"${title.trim()}" created`);
   }
- 
+
   function renderCustomPageViews() {
-    document.querySelectorAll('.admin-view[data-custom-page]').forEach(el=>el.remove());
+    document.querySelectorAll('.admin-view[data-custom-page]').forEach(el => el.remove());
     if (!siteData.customPages) return;
     siteData.customPages.forEach(page => {
       const view = document.createElement('div');
-      view.id='view-custom-'+page.id; view.className='admin-view'; view.dataset.customPage=page.id;
-      const secHtml = page.sections.map((sec,idx)=>`
+      view.id = 'view-custom-' + page.id; view.className = 'admin-view'; view.dataset.customPage = page.id;
+      const secHtml = page.sections.map((sec, idx) => `
         <div class="custom-page-block" data-section-idx="${idx}">
           <button class="custom-page-block__delete" data-del-sec="${idx}">✕ Remove Section</button>
           <h2 class="story__heading" contenteditable="true" data-field="heading"
               style="font-size:clamp(28px,3vw,48px);margin-bottom:16px;">${esc(sec.heading)}</h2>
           <p class="story__copy" contenteditable="true" data-field="text" style="margin-bottom:16px;">${esc(sec.text)}</p>
           ${sec.image
-            ? `<div class="img-edit-wrap" data-add-img="${idx}"><img src="${esc(sec.image)}" alt="" style="max-width:100%;aspect-ratio:16/9;object-fit:cover;" /></div>
+          ? `<div class="img-edit-wrap" data-add-img="${idx}"><img src="${esc(sec.image)}" alt="" style="max-width:100%;aspect-ratio:16/9;object-fit:cover;" /></div>
                <span style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-bright);cursor:pointer;display:block;margin-top:6px;" data-add-img="${idx}">✎ Change image</span>`
-            : `<button class="add-block-btn" data-add-img="${idx}" style="padding:12px;margin-top:0;">📷 Add Image</button>`
-          }
+          : `<button class="add-block-btn" data-add-img="${idx}" style="padding:12px;margin-top:0;">📷 Add Image</button>`
+        }
         </div>`).join('');
-      view.innerHTML=`
+      view.innerHTML = `
         <main class="site-shell">
           <div class="container" style="padding:80px 0;">
             <div class="admin-section-label">Custom Page: ${esc(page.title)}</div>
@@ -819,12 +838,12 @@
           </div>
         </main>`;
       document.body.appendChild(view);
-      view.querySelectorAll('[data-del-sec]').forEach(btn=>{
-        btn.addEventListener('click',()=>{ page.sections.splice(parseInt(btn.dataset.delSec),1); dirty=true; markDirty(); renderCustomPageViews(); switchView('custom-'+page.id,document.querySelector(`[data-view="custom-${page.id}"]`)); });
+      view.querySelectorAll('[data-del-sec]').forEach(btn => {
+        btn.addEventListener('click', () => { page.sections.splice(parseInt(btn.dataset.delSec), 1); dirty = true; markDirty(); renderCustomPageViews(); switchView('custom-' + page.id, document.querySelector(`[data-view="custom-${page.id}"]`)); });
       });
-      view.querySelector(`[data-add-sec]`).addEventListener('click',()=>{ page.sections.push({heading:'New Section',text:'Write content here.',image:''}); dirty=true; markDirty(); renderCustomPageViews(); switchView('custom-'+page.id,document.querySelector(`[data-view="custom-${page.id}"]`)); });
-      view.querySelector(`[data-del-page]`).addEventListener('click',()=>{ if(!confirm(`Delete "${page.title}"?`)) return; siteData.customPages=siteData.customPages.filter(p=>p.id!==page.id); dirty=true; markDirty(); buildTabs(); renderCustomPageViews(); switchView('home',document.querySelector('[data-view="home"]')); });
-      view.querySelectorAll('[data-add-img]').forEach(el=>{ el.addEventListener('click',()=>{ const idx=parseInt(el.dataset.addImg); const url=prompt('Image URL:',page.sections[idx]&&page.sections[idx].image||''); if(url!==null){page.sections[idx].image=url; dirty=true; markDirty(); renderCustomPageViews(); switchView('custom-'+page.id,document.querySelector(`[data-view="custom-${page.id}"]`));} }); });
+      view.querySelector(`[data-add-sec]`).addEventListener('click', () => { page.sections.push({ heading: 'New Section', text: 'Write content here.', image: '' }); dirty = true; markDirty(); renderCustomPageViews(); switchView('custom-' + page.id, document.querySelector(`[data-view="custom-${page.id}"]`)); });
+      view.querySelector(`[data-del-page]`).addEventListener('click', () => { if (!confirm(`Delete "${page.title}"?`)) return; siteData.customPages = siteData.customPages.filter(p => p.id !== page.id); dirty = true; markDirty(); buildTabs(); renderCustomPageViews(); switchView('home', document.querySelector('[data-view="home"]')); });
+      view.querySelectorAll('[data-add-img]').forEach(el => { el.addEventListener('click', () => { const idx = parseInt(el.dataset.addImg); const url = prompt('Image URL:', page.sections[idx] && page.sections[idx].image || ''); if (url !== null) { page.sections[idx].image = url; dirty = true; markDirty(); renderCustomPageViews(); switchView('custom-' + page.id, document.querySelector(`[data-view="custom-${page.id}"]`)); } }); });
     });
   }
 
@@ -839,7 +858,7 @@
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       if (!AudioContext) return;
       const ctx = new AudioContext();
-      
+
       const osc1 = ctx.createOscillator();
       const gain1 = ctx.createGain();
       osc1.type = 'sine';
@@ -850,7 +869,7 @@
       gain1.connect(ctx.destination);
       osc1.start();
       osc1.stop(ctx.currentTime + 0.35);
-      
+
       setTimeout(() => {
         const osc2 = ctx.createOscillator();
         const gain2 = ctx.createGain();
@@ -890,6 +909,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId, status: nextStatus })
       });
+      if (res.status === 401) {
+        window.location.href = '/login.html';
+        return;
+      }
       const data = await res.json();
       if (data.ok) {
         refreshOrdersBoard();
@@ -909,12 +932,16 @@
 
     try {
       const res = await fetch('/api/orders?' + Date.now());
+      if (res.status === 401) {
+        window.location.href = '/login.html';
+        return;
+      }
       if (!res.ok) return;
       const data = await res.json();
       if (!data.ok || !data.orders) return;
 
       const orders = data.orders;
-      
+
       // Check for new orders to trigger audio chime
       let hasNewOrder = false;
       orders.forEach(order => {
@@ -925,7 +952,7 @@
           }
         }
       });
-      
+
       if (firstOrderLoad) {
         firstOrderLoad = false;
       }
@@ -1039,82 +1066,89 @@
       console.error("Error refreshing orders board:", err);
     }
   }
- 
+
   // ════════════════════════════════════════════════════════════
   //  PUBLISH
   // ════════════════════════════════════════════════════════════
   function handlePublish() {
     const btn = document.getElementById('publishBtn');
- 
+
     // ── Home ──
-    const titleEl=document.querySelector('[data-edit-target="heroTitle"]');
-    if(titleEl) siteData.heroTitle=titleEl.innerHTML.trim();
-    const leadEl=document.querySelector('[data-edit-target="heroLead"]');
-    if(leadEl)  siteData.heroLead=leadEl.textContent.trim();
-    const metaEl=document.querySelector('[data-edit-target="heroMeta"]');
-    if(metaEl)  siteData.heroMeta=Array.from(metaEl.children).map(c=>c.textContent.trim()).filter(Boolean);
-    const mg=document.querySelector('[data-edit-target="metricsGrid"]');
-    if(mg) {
-      siteData.metrics=[];
-      mg.querySelectorAll(':scope>div').forEach(col=>{
-        const vSpan=col.querySelector('.metric__value span'); const lDiv=col.querySelector('.metric__label');
-        const suf=col.querySelector('.metric__value span:last-child');
-        if(vSpan&&lDiv) siteData.metrics.push({value:parseInt(vSpan.textContent)||0,label:lDiv.textContent.trim(),suffix:(suf&&suf!==vSpan)?suf.textContent.trim():''});
+    const titleEl = document.querySelector('[data-edit-target="heroTitle"]');
+    if (titleEl) siteData.heroTitle = titleEl.innerHTML.trim();
+    const leadEl = document.querySelector('[data-edit-target="heroLead"]');
+    if (leadEl) siteData.heroLead = leadEl.textContent.trim();
+    const metaEl = document.querySelector('[data-edit-target="heroMeta"]');
+    if (metaEl) siteData.heroMeta = Array.from(metaEl.children).map(c => c.textContent.trim()).filter(Boolean);
+    const mg = document.querySelector('[data-edit-target="metricsGrid"]');
+    if (mg) {
+      siteData.metrics = [];
+      mg.querySelectorAll(':scope>div').forEach(col => {
+        const vSpan = col.querySelector('.metric__value span'); const lDiv = col.querySelector('.metric__label');
+        const suf = col.querySelector('.metric__value span:last-child');
+        if (vSpan && lDiv) siteData.metrics.push({ value: parseInt(vSpan.textContent) || 0, label: lDiv.textContent.trim(), suffix: (suf && suf !== vSpan) ? suf.textContent.trim() : '' });
       });
     }
- 
+
     // ── Story ──
-    const ss=document.querySelector('[data-edit-target="storySection"]');
-    if(ss){const i=ss.querySelector('.story__index'),h=ss.querySelector('.story__heading'),c=ss.querySelector('.story__copy');if(i)siteData.storySection.eyebrow=i.textContent.trim();if(h)siteData.storySection.heading=h.innerHTML.trim();if(c)siteData.storySection.copy=c.textContent.trim();}
-    const ps=document.querySelector('[data-edit-target="promiseSection"]');
-    if(ps){const i=ps.querySelector('.story__index'),h=ps.querySelector('.story__heading'),c=ps.querySelector('.story__copy');if(i)siteData.promiseSection.eyebrow=i.textContent.trim();if(h)siteData.promiseSection.heading=h.innerHTML.trim();if(c)siteData.promiseSection.copy=c.textContent.trim();}
-    const ae=document.querySelector('[data-edit-target="visitAddress"]');
-    if(ae){const parts=ae.innerHTML.split(/<br\s*\/?>/i);siteData.visitAddress=(parts[0]||'').replace(/<[^>]*>/g,'').replace(/,\s*$/,'').trim();siteData.visitCity=(parts[1]||'').replace(/<[^>]*>/g,'').trim();}
-    const ce=document.querySelector('[data-edit-target="visitCopy"]');
-    if(ce) siteData.visitCopy=ce.textContent.trim();
- 
+    const ss = document.querySelector('[data-edit-target="storySection"]');
+    if (ss) { const i = ss.querySelector('.story__index'), h = ss.querySelector('.story__heading'), c = ss.querySelector('.story__copy'); if (i) siteData.storySection.eyebrow = i.textContent.trim(); if (h) siteData.storySection.heading = h.innerHTML.trim(); if (c) siteData.storySection.copy = c.textContent.trim(); }
+    const ps = document.querySelector('[data-edit-target="promiseSection"]');
+    if (ps) { const i = ps.querySelector('.story__index'), h = ps.querySelector('.story__heading'), c = ps.querySelector('.story__copy'); if (i) siteData.promiseSection.eyebrow = i.textContent.trim(); if (h) siteData.promiseSection.heading = h.innerHTML.trim(); if (c) siteData.promiseSection.copy = c.textContent.trim(); }
+    const ae = document.querySelector('[data-edit-target="visitAddress"]');
+    if (ae) { const parts = ae.innerHTML.split(/<br\s*\/?>/i); siteData.visitAddress = (parts[0] || '').replace(/<[^>]*>/g, '').replace(/,\s*$/, '').trim(); siteData.visitCity = (parts[1] || '').replace(/<[^>]*>/g, '').trim(); }
+    const ce = document.querySelector('[data-edit-target="visitCopy"]');
+    if (ce) siteData.visitCopy = ce.textContent.trim();
+
     // ── Menu — already live-synced to siteData.menuItems via input events ──
     // (nothing extra to scrape)
- 
+
     // ── Custom pages ──
-    (siteData.customPages||[]).forEach(page=>{
-      const te=document.querySelector(`[data-page-title="${page.id}"]`);
-      if(te) page.title=te.textContent.trim();
-      const sc=document.querySelector(`[data-page-sections="${page.id}"]`);
-      if(sc) sc.querySelectorAll('.custom-page-block').forEach((block,idx)=>{
-        if(!page.sections[idx]) return;
-        const h=block.querySelector('[data-field="heading"]'),t=block.querySelector('[data-field="text"]'),i=block.querySelector('img');
-        if(h) page.sections[idx].heading=h.innerHTML.trim();
-        if(t) page.sections[idx].text=t.textContent.trim();
-        if(i) page.sections[idx].image=i.src;
+    (siteData.customPages || []).forEach(page => {
+      const te = document.querySelector(`[data-page-title="${page.id}"]`);
+      if (te) page.title = te.textContent.trim();
+      const sc = document.querySelector(`[data-page-sections="${page.id}"]`);
+      if (sc) sc.querySelectorAll('.custom-page-block').forEach((block, idx) => {
+        if (!page.sections[idx]) return;
+        const h = block.querySelector('[data-field="heading"]'), t = block.querySelector('[data-field="text"]'), i = block.querySelector('img');
+        if (h) page.sections[idx].heading = h.innerHTML.trim();
+        if (t) page.sections[idx].text = t.textContent.trim();
+        if (i) page.sections[idx].image = i.src;
       });
     });
- 
+
     // ── POST ──
-    btn.textContent='Publishing…'; btn.disabled=true;
-    fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(siteData)})
-    .then(r=>r.json())
-    .then(result=>{
-      btn.textContent='Publish Changes'; btn.disabled=false;
-      if(result.ok){ markClean(); if(window.showToast) window.showToast('✓ Published — site-data.json saved'); }
-      else alert('Server error: '+(result.error||'unknown'));
-    })
-    .catch(err=>{
-      btn.textContent='Publish Changes'; btn.disabled=false;
-      alert('Cannot reach server.\n\nRun:  node server.js\nOpen: http://localhost:3001/admin.html\n\nDo not open as a file:// URL.');
-      console.error(err);
-    });
+    btn.textContent = 'Publishing…'; btn.disabled = true;
+    fetch('/api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(siteData) })
+      .then(r => {
+        if (r.status === 401) {
+          window.location.href = '/login.html';
+          return;
+        }
+        return r.json();
+      })
+      .then(result => {
+        if (!result) return;
+        btn.textContent = 'Publish Changes'; btn.disabled = false;
+        if (result.ok) { markClean(); if (window.showToast) window.showToast('✓ Published — site-data.json saved'); }
+        else alert('Server error: ' + (result.error || 'unknown'));
+      })
+      .catch(err => {
+        btn.textContent = 'Publish Changes'; btn.disabled = false;
+        alert('Cannot reach server.\n\nRun:  node server.js\nOpen: http://localhost:3001/admin.html\n\nDo not open as a file:// URL.');
+        console.error(err);
+      });
   }
- 
+
   // ── Helpers ────────────────────────────────────────────────
-  function makeEditable(el){ if(el) el.setAttribute('contenteditable','true'); }
-  function makeImageEditable(img, cb){
-    if(!img||img.dataset.editReady) return;
-    img.dataset.editReady='1'; img.style.cursor='pointer';
-    const wrap=document.createElement('div'); wrap.className='img-edit-wrap'; wrap.style.cssText='display:block;width:100%;';
-    img.parentNode.insertBefore(wrap,img); wrap.appendChild(img);
-    wrap.addEventListener('click',()=>{ const url=prompt('Image URL:',img.src); if(url!==null&&url.trim()){img.src=url.trim();if(cb)cb(url.trim());dirty=true;markDirty();}});
+  function makeEditable(el) { if (el) el.setAttribute('contenteditable', 'true'); }
+  function makeImageEditable(img, cb) {
+    if (!img || img.dataset.editReady) return;
+    img.dataset.editReady = '1'; img.style.cursor = 'pointer';
+    const wrap = document.createElement('div'); wrap.className = 'img-edit-wrap'; wrap.style.cssText = 'display:block;width:100%;';
+    img.parentNode.insertBefore(wrap, img); wrap.appendChild(img);
+    wrap.addEventListener('click', () => { const url = prompt('Image URL:', img.src); if (url !== null && url.trim()) { img.src = url.trim(); if (cb) cb(url.trim()); dirty = true; markDirty(); } });
   }
-  function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
- 
+  function esc(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
 })();

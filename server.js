@@ -1,4 +1,4 @@
-/*  Stachey's Pizza — local dev server
+/*  Stachey's Pizza — local dev server with security updates
     Run with:  node server.js
     Then open: http://localhost:3001
                http://localhost:3001/admin.html
@@ -12,6 +12,14 @@ const path   = require('path');
 const crypto = require('crypto');
 
 const PORT = 3001;
+
+// ── Admin Password Setup ──
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'StacheysPizza2026';
+if (!process.env.ADMIN_PASSWORD) {
+  console.warn('  ⚠ WARNING: ADMIN_PASSWORD environment variable not set.');
+  console.warn('    Using default fallback password: StacheysPizza2026');
+  console.warn('    Please configure ADMIN_PASSWORD in a .env file for production.');
+}
 
 // ── Stripe Setup ──
 const STRIPE_SECRET    = process.env.STRIPE_SECRET_KEY || '';
@@ -40,6 +48,19 @@ function saveOrders(orders) {
   fs.writeFileSync(ORDERS_PATH, JSON.stringify(orders, null, 2), 'utf8');
 }
 
+// ── Site Data Store ──
+function loadSiteData() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(__dirname, 'site-data.json'), 'utf8'));
+  } catch (e) {
+    console.error('Error loading site data:', e);
+    return null;
+  }
+}
+
+// ── Active Sessions ──
+const activeSessions = new Set();
+
 const MIME = {
   '.html': 'text/html',
   '.js':   'text/javascript',
@@ -55,14 +76,24 @@ const MIME = {
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Cookie',
+  'Access-Control-Allow-Credentials': 'true',
 };
 
 // ── Helpers ──
-function readBody(req) {
+function readBody(req, limit = 102400) { // Limit default to 100KB
   return new Promise((resolve, reject) => {
     let body = '';
-    req.on('data', chunk => { body += chunk.toString(); });
+    let bytesReceived = 0;
+    req.on('data', chunk => {
+      bytesReceived += chunk.length;
+      if (bytesReceived > limit) {
+        reject(new Error('Payload too large'));
+        req.destroy();
+        return;
+      }
+      body += chunk.toString();
+    });
     req.on('end', () => resolve(body));
     req.on('error', reject);
   });
@@ -85,6 +116,74 @@ function parseUrl(url) {
   return { pathname, params };
 }
 
+function parseCookies(req) {
+  const list = {};
+  const cookieHeader = req.headers.cookie;
+  if (!cookieHeader) return list;
+
+  cookieHeader.split(';').forEach(cookie => {
+    const parts = cookie.split('=');
+    const name = parts[0].trim();
+    const value = parts.slice(1).join('=').trim();
+    if (name) {
+      list[name] = decodeURIComponent(value);
+    }
+  });
+  return list;
+}
+
+function isAuthenticated(req) {
+  const cookies = parseCookies(req);
+  const token = cookies.session_token;
+  return token && activeSessions.has(token);
+}
+
+// ── Price Recalculation / Verification ──
+function verifyItemsAndCalculateTotal(items, orderType) {
+  const siteData = loadSiteData();
+  if (!siteData) throw new Error('Site data unavailable');
+
+  let total = 0;
+  for (const item of items) {
+    if (item.name === 'Custom 12" Pie' || item.name.includes('Custom')) {
+      // Recalculate custom pizza price
+      let itemPrice = siteData.customizerBasePrice || 16;
+      if (item.meta) {
+        const selectedToppings = item.meta.split(' · ');
+        selectedToppings.forEach(toppingName => {
+          let found = false;
+          for (const cat of siteData.customizerCategories || []) {
+            const top = cat.toppings.find(t => t.name.toLowerCase() === toppingName.toLowerCase());
+            if (top) {
+              itemPrice += top.price;
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            console.warn(`Custom topping "${toppingName}" not found in config`);
+          }
+        });
+      }
+      item.price = itemPrice; // Sync verified price
+      total += itemPrice;
+    } else {
+      // Find item in menuItems
+      const menuItem = siteData.menuItems.find(mi => mi.id === item.id || mi.name.toLowerCase() === item.name.toLowerCase());
+      if (!menuItem) {
+        throw new Error(`Invalid item in cart: ${item.name}`);
+      }
+      item.price = menuItem.price; // Sync verified price
+      total += menuItem.price;
+    }
+  }
+
+  if (orderType === 'delivery') {
+    total += 4;
+  }
+  return Math.round(total * 100) / 100;
+}
+
 // ═══════════════════════════════════════════
 //  SERVER
 // ═══════════════════════════════════════════
@@ -99,12 +198,66 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── API Authentication Route Guards ──
+  const protectedApis = ['/api/save', '/api/orders', '/api/orders/update-status'];
+  if (protectedApis.includes(pathname)) {
+    if (!isAuthenticated(req)) {
+      jsonResponse(res, 401, { ok: false, error: 'Unauthorized' });
+      return;
+    }
+  }
+
+  // ══════════════════════════════════════
+  //  POST /api/login
+  // ══════════════════════════════════════
+  if (req.method === 'POST' && pathname === '/api/login') {
+    try {
+      const body = await readBody(req, 1000); // 1KB limit for login
+      const { password } = JSON.parse(body);
+
+      if (password === ADMIN_PASSWORD) {
+        const token = crypto.randomBytes(32).toString('hex');
+        activeSessions.add(token);
+
+        res.writeHead(200, {
+          'Set-Cookie': `session_token=${token}; Path=/; HttpOnly; SameSite=Strict`,
+          'Content-Type': 'application/json',
+          ...CORS
+        });
+        res.end(JSON.stringify({ ok: true }));
+      } else {
+        jsonResponse(res, 401, { ok: false, error: 'Incorrect password' });
+      }
+    } catch (e) {
+      jsonResponse(res, 400, { ok: false, error: e.message || 'Invalid request' });
+    }
+    return;
+  }
+
+  // ══════════════════════════════════════
+  //  POST /api/logout
+  // ══════════════════════════════════════
+  if (req.method === 'POST' && pathname === '/api/logout') {
+    const cookies = parseCookies(req);
+    const token = cookies.session_token;
+    if (token) {
+      activeSessions.delete(token);
+    }
+    res.writeHead(200, {
+      'Set-Cookie': `session_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Strict`,
+      'Content-Type': 'application/json',
+      ...CORS
+    });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
   // ══════════════════════════════════════
   //  POST /api/save  →  write site-data.json
   // ══════════════════════════════════════
   if (req.method === 'POST' && pathname === '/api/save') {
-    const body = await readBody(req);
     try {
+      const body = await readBody(req, 204800); // 200KB limit for site data
       const parsed = JSON.parse(body);
       const dataPath = path.join(__dirname, 'site-data.json');
       fs.writeFile(dataPath, JSON.stringify(parsed, null, 2), 'utf8', err => {
@@ -118,26 +271,35 @@ const server = http.createServer(async (req, res) => {
       });
     } catch (e) {
       console.error('JSON parse error:', e);
-      jsonResponse(res, 400, { ok: false, error: 'Invalid JSON' });
+      const status = e.message === 'Payload too large' ? 413 : 400;
+      jsonResponse(res, status, { ok: false, error: e.message || 'Invalid JSON' });
     }
     return;
   }
 
   // ══════════════════════════════════════
   //  POST /api/create-checkout-session
-  //  Creates a Stripe Checkout session
   // ══════════════════════════════════════
   if (req.method === 'POST' && pathname === '/api/create-checkout-session') {
     if (!stripe) {
       jsonResponse(res, 500, { ok: false, error: 'Stripe not configured. Add keys to .env file.' });
       return;
     }
-    const body = await readBody(req);
     try {
+      const body = await readBody(req, 50000); // 50KB limit
       const { items, customer, orderType, deliveryAddress } = JSON.parse(body);
 
       if (!items || !items.length) {
         jsonResponse(res, 400, { ok: false, error: 'Cart is empty' });
+        return;
+      }
+
+      // Recalculate price on the server to prevent tamper/manipulation
+      let validatedTotal;
+      try {
+        validatedTotal = verifyItemsAndCalculateTotal(items, orderType);
+      } catch (err) {
+        jsonResponse(res, 400, { ok: false, error: err.message });
         return;
       }
 
@@ -149,7 +311,7 @@ const server = http.createServer(async (req, res) => {
             name: item.name,
             description: item.meta || item.ingredients || '',
           },
-          unit_amount: Math.round(item.price * 100), // cents
+          unit_amount: Math.round(item.price * 100), // verified cents price
         },
         quantity: 1,
       }));
@@ -166,10 +328,7 @@ const server = http.createServer(async (req, res) => {
         });
       }
 
-      // Generate a pending order ID
       const orderId = 'ORD-' + Date.now().toString(36).toUpperCase() + '-' + crypto.randomBytes(2).toString('hex').toUpperCase();
-
-      // Store pending order metadata in the session
       const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || `http://localhost:${PORT}`;
 
       const session = await stripe.checkout.sessions.create({
@@ -191,14 +350,14 @@ const server = http.createServer(async (req, res) => {
       jsonResponse(res, 200, { ok: true, url: session.url, orderId });
     } catch (e) {
       console.error('Stripe session error:', e);
-      jsonResponse(res, 500, { ok: false, error: e.message });
+      const status = e.message === 'Payload too large' ? 413 : 500;
+      jsonResponse(res, status, { ok: false, error: e.message });
     }
     return;
   }
 
   // ══════════════════════════════════════
   //  GET /api/checkout-success
-  //  Stripe redirects here after payment
   // ══════════════════════════════════════
   if (req.method === 'GET' && pathname === '/api/checkout-success') {
     const sessionId = params.session_id;
@@ -216,8 +375,14 @@ const server = http.createServer(async (req, res) => {
       const alreadyExists = orders.some(o => o.stripeSessionId === sessionId);
       if (!alreadyExists) {
         const items = JSON.parse(meta.itemsJson || '[]');
-        const total = items.reduce((s, i) => s + (parseFloat(i.price) || 0), 0)
-                      + (meta.orderType === 'delivery' ? 4 : 0);
+        
+        let total;
+        try {
+          total = verifyItemsAndCalculateTotal(items, meta.orderType);
+        } catch (e) {
+          total = items.reduce((s, i) => s + (parseFloat(i.price) || 0), 0)
+                + (meta.orderType === 'delivery' ? 4 : 0);
+        }
 
         const order = {
           id: meta.orderId || 'ORD-' + Date.now().toString(36).toUpperCase(),
@@ -229,7 +394,7 @@ const server = http.createServer(async (req, res) => {
           orderType: meta.orderType || 'pickup',
           deliveryAddress: meta.deliveryAddress || '',
           status: 'new',
-          total: Math.round(total * 100) / 100,
+          total: total,
           createdAt: new Date().toISOString(),
           stripeSessionId: sessionId,
           paymentStatus: session.payment_status,
@@ -240,7 +405,6 @@ const server = http.createServer(async (req, res) => {
         console.log(`✓ New order saved: ${order.id} — $${order.total}`);
       }
 
-      // Redirect to success page
       res.writeHead(302, {
         Location: `/checkout-success.html?order_id=${encodeURIComponent(meta.orderId || '')}`,
       });
@@ -254,11 +418,11 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ══════════════════════════════════════
-  //  POST /api/orders/place  (non-Stripe fallback — cash orders)
+  //  POST /api/orders/place (cash orders)
   // ══════════════════════════════════════
   if (req.method === 'POST' && pathname === '/api/orders/place') {
-    const body = await readBody(req);
     try {
+      const body = await readBody(req, 50000); // 50KB limit
       const { items, customer, orderType, deliveryAddress, paymentMethod } = JSON.parse(body);
 
       if (!items || !items.length) {
@@ -266,8 +430,14 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const total = items.reduce((s, i) => s + (parseFloat(i.price) || 0), 0)
-                    + (orderType === 'delivery' ? 4 : 0);
+      // Recalculate and verify prices on the server
+      let validatedTotal;
+      try {
+        validatedTotal = verifyItemsAndCalculateTotal(items, orderType);
+      } catch (err) {
+        jsonResponse(res, 400, { ok: false, error: err.message });
+        return;
+      }
 
       const orderId = 'ORD-' + Date.now().toString(36).toUpperCase() + '-' + crypto.randomBytes(2).toString('hex').toUpperCase();
 
@@ -281,7 +451,7 @@ const server = http.createServer(async (req, res) => {
         orderType: orderType || 'pickup',
         deliveryAddress: deliveryAddress || '',
         status: 'new',
-        total: Math.round(total * 100) / 100,
+        total: validatedTotal,
         createdAt: new Date().toISOString(),
         stripeSessionId: null,
         paymentStatus: paymentMethod === 'cash' ? 'pay_on_arrival' : 'pending',
@@ -295,14 +465,14 @@ const server = http.createServer(async (req, res) => {
       jsonResponse(res, 200, { ok: true, orderId });
     } catch (e) {
       console.error('Order place error:', e);
-      jsonResponse(res, 500, { ok: false, error: e.message });
+      const status = e.message === 'Payload too large' ? 413 : 500;
+      jsonResponse(res, status, { ok: false, error: e.message });
     }
     return;
   }
 
   // ══════════════════════════════════════
   //  GET /api/orders
-  //  Returns all orders for the admin dashboard
   // ══════════════════════════════════════
   if (req.method === 'GET' && pathname === '/api/orders') {
     const orders = loadOrders();
@@ -312,11 +482,10 @@ const server = http.createServer(async (req, res) => {
 
   // ══════════════════════════════════════
   //  POST /api/orders/update-status
-  //  Body: { orderId, status }
   // ══════════════════════════════════════
   if (req.method === 'POST' && pathname === '/api/orders/update-status') {
-    const body = await readBody(req);
     try {
+      const body = await readBody(req, 1000); // 1KB limit
       const { orderId, status } = JSON.parse(body);
       const validStatuses = ['new', 'preparing', 'ready', 'completed'];
       if (!validStatuses.includes(status)) {
@@ -338,14 +507,14 @@ const server = http.createServer(async (req, res) => {
       jsonResponse(res, 200, { ok: true, order });
     } catch (e) {
       console.error('Status update error:', e);
-      jsonResponse(res, 500, { ok: false, error: e.message });
+      const status = e.message === 'Payload too large' ? 413 : 500;
+      jsonResponse(res, status, { ok: false, error: e.message });
     }
     return;
   }
 
   // ══════════════════════════════════════
   //  GET /api/config
-  //  Returns public config (Stripe publishable key)
   // ══════════════════════════════════════
   if (req.method === 'GET' && pathname === '/api/config') {
     jsonResponse(res, 200, {
@@ -361,6 +530,23 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET') {
     let urlPath = pathname;
     if (urlPath === '/') urlPath = '/index.html';
+
+    // Authentication Checks for static admin files
+    if (urlPath === '/admin.html' || urlPath === '/editor.js') {
+      if (!isAuthenticated(req)) {
+        res.writeHead(302, { Location: '/login.html' });
+        res.end();
+        return;
+      }
+    }
+
+    if (urlPath === '/login.html') {
+      if (isAuthenticated(req)) {
+        res.writeHead(302, { Location: '/admin.html' });
+        res.end();
+        return;
+      }
+    }
 
     // Security: prevent directory traversal
     const safe = path.normalize(urlPath).replace(/^(\.\.[\/\\])+/, '');
@@ -383,6 +569,7 @@ const server = http.createServer(async (req, res) => {
   res.end('Method Not Allowed');
 });
 
+// Start Server
 server.listen(PORT, () => {
   console.log('');
   console.log('  ┌──────────────────────────────────────────────┐');
