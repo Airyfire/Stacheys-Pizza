@@ -1,3 +1,4 @@
+'use strict';
 /*  Stachey's Pizza — local dev server with security updates
     Run with:  node server.js
     Then open: http://localhost:3001
@@ -5,6 +6,7 @@
 */
 
 require('dotenv').config();
+const bcrypt = require('bcrypt'); // for secure password hashing
 
 const http   = require('http');
 const fs     = require('fs');
@@ -13,15 +15,23 @@ const crypto = require('crypto');
 
 const PORT = 3001;
 
-// ── Admin Password Setup ──
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'StacheysPizza2026';
-if (!process.env.ADMIN_PASSWORD) {
-  console.warn('  ⚠ WARNING: ADMIN_PASSWORD environment variable not set.');
-  console.warn('    Using default fallback password: StacheysPizza2026');
-  console.warn('    Please configure ADMIN_PASSWORD in a .env file for production.');
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
+if (!ADMIN_PASSWORD_HASH) {
+  console.error('\n  ✗ ADMIN_PASSWORD_HASH env variable not set. Generate with:\n    node -e "console.log(require('bcrypt').hashSync('yourPassword', 12))"\n  and add to .env.\n');
+  process.exit(1);
 }
 
-// ── Stripe Setup ──
+// ── Rate Limiting ──
+const loginAttempts = {};
+const MAX_ATTEMPTS = 5;
+const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
+
+function setSecurityHeaders(res) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+}
+
 const STRIPE_SECRET    = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_PUB_KEY   = process.env.STRIPE_PUBLISHABLE_KEY || '';
 let stripe = null;
@@ -73,15 +83,26 @@ const MIME = {
   '.ico':  'image/x-icon',
 };
 
+// Allowed origins for CORS (comma‑separated list in .env)
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3001').split(',').map(o => o.trim());
+
+function getCorsHeaders(req) {
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    return { 'Access-Control-Allow-Origin': origin };
+  }
+  return { 'Access-Control-Allow-Origin': '*'};
+}
+
 const CORS = {
-  'Access-Control-Allow-Origin':  '*',
+  ...getCorsHeaders({ headers: {} }),
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Cookie',
   'Access-Control-Allow-Credentials': 'true',
 };
 
 // ── Helpers ──
-function readBody(req, limit = 102400) { // Limit default to 100KB
+function readBody(req, limit) { // Limit default to 100KB
   return new Promise((resolve, reject) => {
     let body = '';
     let bytesReceived = 0;
@@ -99,7 +120,9 @@ function readBody(req, limit = 102400) { // Limit default to 100KB
   });
 }
 
+
 function jsonResponse(res, status, data) {
+  setSecurityHeaders(res);
   res.writeHead(status, { 'Content-Type': 'application/json', ...CORS });
   res.end(JSON.stringify(data));
 }
@@ -211,11 +234,33 @@ const server = http.createServer(async (req, res) => {
   //  POST /api/login
   // ══════════════════════════════════════
   if (req.method === 'POST' && pathname === '/api/login') {
+    // Rate limit check
+    const ip = req.socket.remoteAddress || req.headers['x-forwarded-for'] || 'unknown';
+    const now = Date.now();
+    if (!loginAttempts[ip]) {
+      loginAttempts[ip] = { count: 0, firstAttempt: now };
+    }
+    const attempt = loginAttempts[ip];
+    if (now - attempt.firstAttempt > ATTEMPT_WINDOW_MS) {
+      // reset window
+      attempt.count = 0;
+      attempt.firstAttempt = now;
+    }
+    if (attempt.count >= MAX_ATTEMPTS) {
+      jsonResponse(res, 429, { ok: false, error: 'Too many login attempts, please try again later.' });
+      return;
+    }
+    // Increment after successful parse
+    attempt.count++;
+
     try {
       const body = await readBody(req, 1000); // 1KB limit for login
       const { password } = JSON.parse(body);
 
-      if (password === ADMIN_PASSWORD) {
+      // Verify password hash
+      const passwordMatches = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+
+      if (passwordMatches) {
         const token = crypto.randomBytes(32).toString('hex');
         activeSessions.add(token);
 
@@ -548,19 +593,26 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    // Security: prevent directory traversal
-    const safe = path.normalize(urlPath).replace(/^(\.\.[\/\\])+/, '');
-    const abs  = path.join(__dirname, safe);
+    // Security: prevent directory traversal using resolved path check
+    const safePath = path.normalize(urlPath).replace(/^\.\.[\\/]+/, '');
+    const absPath = path.resolve(__dirname, '.' + safePath);
+    // Ensure the resolved path is within the project directory
+    if (!absPath.startsWith(__dirname)) {
+      res.writeHead(403, { 'Content-Type': 'text/plain', ...CORS });
+      res.end('Forbidden');
+      return;
+    }
 
-    fs.stat(abs, (err, stat) => {
+    fs.stat(absPath, (err, stat) => {
       if (err || !stat.isFile()) {
         res.writeHead(404, { 'Content-Type': 'text/plain', ...CORS });
-        res.end('404 Not Found: ' + safe);
+        res.end('404 Not Found: ' + safePath);
         return;
       }
-      const mime = MIME[path.extname(abs).toLowerCase()] || 'application/octet-stream';
+      const mime = MIME[path.extname(absPath).toLowerCase()] || 'application/octet-stream';
+      setSecurityHeaders(res);
       res.writeHead(200, { 'Content-Type': mime, ...CORS });
-      fs.createReadStream(abs).pipe(res);
+      fs.createReadStream(absPath).pipe(res);
     });
     return;
   }
@@ -579,6 +631,19 @@ server.listen(PORT, () => {
   console.log('  └──────────────────────────────────────────────┘');
   console.log('');
 });
+
+// Enforce HTTPS in production (after server is created)
+if (process.env.NODE_ENV === 'production' && !process.env.DISABLE_HTTPS_REDIRECT) {
+  server.on('request', (req, res) => {
+    if (req.headers['x-forwarded-proto'] !== 'https') {
+      const host = req.headers.host;
+      const url = `https://${host}${req.url}`;
+      res.writeHead(301, { Location: url });
+      res.end();
+      return;
+    }
+  });
+}
 
 server.on('error', err => {
   if (err.code === 'EADDRINUSE') {
