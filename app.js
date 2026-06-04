@@ -877,10 +877,15 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
-          const data = await res.json();
-          if (data.ok && data.url) {
+          
+          const text = await res.text();
+          let data;
+          try { data = JSON.parse(text); } catch (e) { data = null; }
+          
+          if (data && data.ok && data.url) {
             window.location.href = data.url;
           } else {
+            if (!data) throw new Error('Online payments require the backend server to be running.');
             throw new Error(data.error || 'Failed to create checkout session');
           }
         } else {
@@ -890,10 +895,19 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ...payload, paymentMethod: 'cash' })
           });
-          const data = await res.json();
-          if (data.ok && data.orderId) {
+          
+          const text = await res.text();
+          let data;
+          try { data = JSON.parse(text); } catch (e) { data = null; }
+
+          if (data && data.ok && data.orderId) {
             closeModal();
             window.location.href = `checkout-success.html?order_id=${encodeURIComponent(data.orderId)}`;
+          } else if (!data) {
+            // Fallback for static GitHub Pages host (demo mode)
+            console.warn('Backend not available. Simulating cash order success for demo purposes.');
+            closeModal();
+            window.location.href = `checkout-success.html?order_id=DEMO-${Date.now().toString(36).toUpperCase()}`;
           } else {
             throw new Error(data.error || 'Failed to place cash order');
           }
