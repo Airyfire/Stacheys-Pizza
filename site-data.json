@@ -11,22 +11,22 @@
   ],
   "metrics": [
     {
-      "value": 0,
+      "value": 312,
       "label": "Pizzas Crafted Today",
       "suffix": ""
     },
     {
-      "value": 0,
+      "value": 48,
       "label": "Dough Ferment Time",
       "suffix": "h"
     },
     {
-      "value": 0,
+      "value": 14,
       "label": "Seasonal Ingredients",
       "suffix": ""
     },
     {
-      "value": 0,
+      "value": 32,
       "label": "Years of Practice",
       "suffix": ""
     }
@@ -249,7 +249,7 @@
       "id": "norma",
       "name": "Alla Norma",
       "category": "red",
-      "price": "0",
+      "price": 21,
       "ingredients": "Tomato, roasted eggplant, ricotta salata, basil",
       "tag": "Seasonal",
       "image": "https://images.unsplash.com/photo-1548369937-47519962c11a?w=600&q=80&auto=format&fit=crop"
@@ -294,7 +294,7 @@
       "id": "focaccia",
       "name": "Rosemary Focaccia",
       "category": "sides",
-      "price": "500",
+      "price": 9,
       "ingredients": "Sea salt, rosemary, extra virgin olive oil",
       "tag": "",
       "image": "https://images.unsplash.com/photo-1532465614-6cc8d45f647f?w=600&q=80&auto=format&fit=crop"
@@ -327,7 +327,5 @@
       "image": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&q=80&auto=format&fit=crop"
     }
   ],
-  
-}
-
+  "customPages": []
 }
